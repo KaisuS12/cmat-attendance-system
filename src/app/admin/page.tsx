@@ -55,29 +55,32 @@ export default async function AdminDashboard() {
           <Link
             key={s.label}
             href={s.href}
-            className="rounded-xl border border-slate-200 bg-white p-4 text-center transition hover:border-slate-400"
+            className="rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 text-center shadow-sm transition hover:border-gold-400"
           >
-            <p className="text-2xl font-semibold tabular-nums text-slate-900">{s.value}</p>
-            <p className="text-xs uppercase tracking-wide text-slate-400">{s.label}</p>
+            <p className="text-2xl font-bold text-brand-800">{s.value}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gold-600">{s.label}</p>
           </Link>
         ))}
       </div>
 
       {activeSemester && (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-          <h2 className="text-sm font-semibold text-slate-900">This semester</h2>
+        <section className="mt-6 rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-4 shadow-sm sm:p-5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-brand-800">
+            <span className="h-2 w-2 rounded-full bg-gold-400" aria-hidden="true" />
+            This semester
+          </h2>
           {summary.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">No finished events yet.</p>
           ) : (
             <>
               <dl className="mt-3 grid grid-cols-2 gap-3">
-                <div>
-                  <dt className="text-xs text-slate-500">Events held</dt>
-                  <dd className="text-2xl font-semibold text-slate-900">{summary.length}</dd>
+                <div className="rounded-lg bg-brand-50 p-3">
+                  <dt className="text-xs text-slate-600">Events held</dt>
+                  <dd className="text-2xl font-bold text-brand-800">{summary.length}</dd>
                 </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Average attendance</dt>
-                  <dd className="text-2xl font-semibold text-slate-900">{averageRate === null ? "—" : `${averageRate}%`}</dd>
+                <div className="rounded-lg bg-gold-100 p-3 ring-1 ring-inset ring-gold-400/60">
+                  <dt className="text-xs text-slate-600">Average attendance</dt>
+                  <dd className="text-2xl font-bold text-gold-600">{averageRate === null ? "—" : `${averageRate}%`}</dd>
                 </div>
               </dl>
               <h3 className="mt-4 text-xs font-medium text-slate-500">Recent events (share of expected students who signed in)</h3>
@@ -86,11 +89,11 @@ export default async function AdminDashboard() {
                   const pct = e.expected > 0 ? Math.round((e.signedIn / e.expected) * 100) : 0;
                   return (
                     <li key={e.id}>
-                      <Link href={`/officer/events/${e.id}`} className="block rounded-lg px-1 py-1 hover:bg-slate-50">
+                      <Link href={`/officer/events/${e.id}`} className="block rounded-lg px-1 py-1 hover:bg-gold-100/60">
                         <div className="flex items-baseline justify-between gap-2 text-sm">
                           <span className="min-w-0 truncate font-medium text-slate-800">{e.title}</span>
                           <span className="shrink-0 text-slate-600">
-                            {formatDayDate(e.lastDay, "numeric")} · <span className="font-semibold text-slate-900">{pct}%</span>
+                            {formatDayDate(e.lastDay, "numeric")} · <span className="font-semibold text-brand-800">{pct}%</span>
                           </span>
                         </div>
                         <div
@@ -116,9 +119,12 @@ export default async function AdminDashboard() {
           <Link
             key={l.href}
             href={l.href}
-            className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-400"
+            className="group block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-gold-400 hover:bg-gold-100/40"
           >
-            <p className="font-medium text-slate-900">{l.label}</p>
+            <p className="flex items-center justify-between font-semibold text-brand-800">
+              {l.label}
+              <span className="text-gold-500 transition group-hover:translate-x-0.5" aria-hidden="true">→</span>
+            </p>
             <p className="mt-0.5 text-sm text-slate-500">{l.desc}</p>
           </Link>
         ))}
