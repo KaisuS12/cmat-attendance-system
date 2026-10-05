@@ -9,8 +9,11 @@ const ROLE_HOME: Record<string, string> = {
 
 const PASSWORD_PAGE = "/account/password";
 
-
 export async function proxy(request: NextRequest) {
+  // Scheduled jobs (Vercel Cron) have no user session; those routes check
+  // their own CRON_SECRET instead.
+  if (request.nextUrl.pathname.startsWith("/api/cron/")) return NextResponse.next();
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
