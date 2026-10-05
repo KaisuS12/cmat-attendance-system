@@ -75,3 +75,50 @@ export async function PATCH(
 
   return NextResponse.json({ eventDay: data });
 }
+
+// Removes a day added by mistake. Not allowed once the day has any
+// attendance (even voided — it's part of the record), or for the last day.
+export async function DELETE(
+  _request: Request,
+  { params }: RouteContext<"/api/events/[id]/days/[dayId]">
+) {
+  const { profile, error } = await requireRole("officer", "admin");
+  if (error) return error;
+
+  const { id, dayId } = await params;
+  const admin = createAdminClient();
+
+  const { data: days } = await admin.from("event_days").select("id, day_date").eq("event_id", id);
+  const day = days?.find((d) => d.id === dayId);
+  if (!day) return NextResponse.json({ error: "Event day not found." }, { status: 404 });
+  if ((days?.length ?? 0) <= 1) {
+    return NextResponse.json(
+      { error: "An event needs at least one day. Delete the event instead." },
+      { status: 409 }
+    );
+  }
+
+  const { count } = await admin
+    .from("attendance_records")
+    .select("id", { count: "exact", head: true })
+    .eq("event_day_id", dayId);
+  if ((count ?? 0) > 0) {
+    return NextResponse.json(
+      { error: "This day already has attendance records and can't be removed." },
+      { status: 409 }
+    );
+  }
+
+  const { error: deleteError } = await admin.from("event_days").delete().eq("id", dayId);
+  if (deleteError) return NextResponse.json({ error: "Could not remove the day." }, { status: 500 });
+
+  await logAudit({
+    actorId: profile.id,
+    action: "event_day_removed",
+    entityType: "event_days",
+    entityId: dayId,
+    details: { eventId: id, dayDate: day.day_date },
+  });
+
+  return NextResponse.json({ ok: true });
+}

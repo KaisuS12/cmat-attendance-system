@@ -24,7 +24,7 @@ interface Invalid {
 interface ImportResult {
   studentId: string;
   fullName: string;
-  status: "created" | "exists" | "failed";
+  status: "created" | "updated" | "exists" | "failed";
   tempPassword?: string;
   error?: string;
 }
@@ -98,6 +98,7 @@ export default function ImportStudentsPage() {
   const [invalid, setInvalid] = useState<Invalid[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [permission, setPermission] = useState(false);
+  const [updateExisting, setUpdateExisting] = useState(false);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(0);
   const [results, setResults] = useState<ImportResult[] | null>(null);
@@ -134,6 +135,7 @@ export default function ImportStudentsPage() {
               yearLevel,
               section,
             })),
+            updateExisting,
           }),
         });
         const data = await res.json();
@@ -155,6 +157,7 @@ export default function ImportStudentsPage() {
 
   const created = results?.filter((r) => r.status === "created") ?? [];
   const existing = results?.filter((r) => r.status === "exists") ?? [];
+  const updated = results?.filter((r) => r.status === "updated") ?? [];
   const failed = results?.filter((r) => r.status === "failed") ?? [];
 
   return (
@@ -265,6 +268,17 @@ export default function ImportStudentsPage() {
               <label className="flex items-start gap-2 text-sm text-slate-600">
                 <input
                   type="checkbox"
+                  checked={updateExisting}
+                  onChange={(e) => setUpdateExisting(e.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                />
+                Update name, program, year and section for students already in the system (their passwords
+                aren&apos;t changed).
+              </label>
+
+              <label className="flex items-start gap-2 text-sm text-slate-600">
+                <input
+                  type="checkbox"
                   checked={permission}
                   onChange={(e) => setPermission(e.target.checked)}
                   className="mt-0.5"
@@ -291,7 +305,7 @@ export default function ImportStudentsPage() {
                 disabled={!permission || running || rows.length === 0}
                 className={`${btnPrimary} w-full`}
               >
-                {running ? "Importing..." : `Create ${rows.length} student accounts`}
+                {running ? "Importing..." : `Import ${rows.length} students`}
               </button>
             </>
           )}
@@ -307,8 +321,10 @@ export default function ImportStudentsPage() {
               <p className="text-xs uppercase tracking-wide text-emerald-700">Created</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-2xl font-semibold text-slate-600">{existing.length}</p>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Already existed</p>
+              <p className="text-2xl font-semibold text-slate-600">{updated.length + existing.length}</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">
+                {updated.length > 0 ? `Existing (${updated.length} updated)` : "Already existed"}
+              </p>
             </div>
             <div className={`rounded-lg p-3 ${failed.length ? "bg-red-50" : "bg-slate-50"}`}>
               <p className={`text-2xl font-semibold ${failed.length ? "text-red-700" : "text-slate-400"}`}>

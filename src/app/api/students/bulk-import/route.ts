@@ -29,13 +29,18 @@ const rowSchema = z.object({
   section: z.string().trim().optional(),
 });
 
-const bodySchema = z.object({ students: z.array(rowSchema).min(1).max(IMPORT_MAX_ROWS_PER_REQUEST) });
+const bodySchema = z.object({
+  students: z.array(rowSchema).min(1).max(IMPORT_MAX_ROWS_PER_REQUEST),
+  // Re-importing an updated masterlist: refresh name/program/year/section of
+  // students who already have accounts (their passwords are untouched).
+  updateExisting: z.boolean().default(false),
+});
 
 type Row = z.infer<typeof rowSchema>;
 type Result = {
   studentId: string;
   fullName: string;
-  status: "created" | "exists" | "failed";
+  status: "created" | "updated" | "exists" | "failed";
   tempPassword?: string;
   error?: string;
 };
@@ -52,12 +57,28 @@ export async function POST(request: Request) {
   // Skip IDs that already have an account, so re-running an import (or
   // importing an updated masterlist) is safe.
   const ids = body.data.students.map((s) => s.studentId);
-  const { data: existing } = await admin.from("profiles").select("student_id").in("student_id", ids);
-  const existingIds = new Set((existing ?? []).map((e) => e.student_id));
+  const { data: existing } = await admin.from("profiles").select("id, student_id").in("student_id", ids);
+  const existingByStudentId = new Map((existing ?? []).map((e) => [e.student_id as string, e.id as string]));
+  const { updateExisting } = body.data;
 
   async function importOne(student: Row): Promise<Result> {
     const base = { studentId: student.studentId, fullName: student.fullName };
-    if (existingIds.has(student.studentId)) return { ...base, status: "exists" };
+    const existingId = existingByStudentId.get(student.studentId);
+    if (existingId) {
+      if (!updateExisting) return { ...base, status: "exists" };
+      const { error: updateError } = await admin
+        .from("profiles")
+        .update({
+          full_name: student.fullName,
+          program: student.program || null,
+          year_level: student.yearLevel || null,
+          section: student.section || null,
+        })
+        .eq("id", existingId);
+      return updateError
+        ? { ...base, status: "failed", error: updateError.message }
+        : { ...base, status: "updated" };
+    }
 
     const tempPassword = generateTempPassword();
     const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -113,6 +134,7 @@ export async function POST(request: Request) {
     details: {
       total: students.length,
       created: results.filter((r) => r.status === "created").length,
+      updated: results.filter((r) => r.status === "updated").length,
       existing: results.filter((r) => r.status === "exists").length,
       failed: results.filter((r) => r.status === "failed").length,
     },

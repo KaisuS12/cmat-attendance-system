@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AttendanceRecordView } from "@/components/AttendanceRecordView";
 import { AccountActions } from "@/components/AccountActions";
+import { EditStudentForm } from "@/components/EditStudentForm";
 import { Badge } from "@/components/ui";
 import type { Profile } from "@/types/database";
 
@@ -33,6 +34,10 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
           {student.must_change_password && <Badge tone="amber">Temporary password</Badge>}
           <AccountActions userId={student.id} name={student.full_name} isActive={student.is_active} />
         </div>
+      </div>
+
+      <div className="mt-3 print:hidden">
+        <EditStudentForm key={`${student.student_id}-${student.full_name}`} student={student} />
       </div>
 
       <div className="mt-4">
