@@ -38,7 +38,18 @@ export async function requireRole(
     return { error: NextResponse.json({ error: "This account is deactivated." }, { status: 403 }) };
   }
   if (roles.length > 0 && !roles.includes(profile.role)) {
-    return { error: NextResponse.json({ error: "You don't have access to this." }, { status: 403 }) };
+    // Most often seen when another tab in the same browser logged into a
+    // different account: this page still shows the old screens, but requests
+    // now carry the new account's session.
+    return {
+      error: NextResponse.json(
+        {
+          error:
+            "Your account doesn't have access to this. If you logged into a different account in another tab, refresh this page.",
+        },
+        { status: 403 }
+      ),
+    };
   }
   return { profile };
 }
