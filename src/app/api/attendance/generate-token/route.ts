@@ -1,30 +1,33 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentProfile } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isWithinVenue } from "@/lib/geofence";
+import { distanceMeters } from "@/lib/geofence";
 import { signQrToken, QR_TOKEN_TTL_MS } from "@/lib/tokens";
 import { logAudit } from "@/lib/audit";
+import { parseJsonBody } from "@/lib/validation";
 import type { EventDay, Venue } from "@/types/database";
 
 const bodySchema = z.object({
   eventDayId: z.string().uuid(),
   type: z.enum(["sign_in", "sign_out"]),
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  // Reported GPS accuracy (meters). Indoors — concrete gyms especially — a
+  // legitimate fix can drift well past the venue edge (§5), so part of the
+  // reported uncertainty is forgiven, capped so it can't widen the fence much.
+  accuracy: z.number().nonnegative().optional(),
 });
 
-export async function POST(request: Request) {
-  const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "student") {
-    return NextResponse.json({ error: "Students only." }, { status: 403 });
-  }
+const MAX_ACCURACY_ALLOWANCE_METERS = 50;
 
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
-  const { eventDayId, type, latitude, longitude } = parsed.data;
+export async function POST(request: Request) {
+  const { profile, error: authError } = await requireRole("student");
+  if (authError) return authError;
+
+  const body = await parseJsonBody(request, bodySchema);
+  if (body.error) return body.error;
+  const { eventDayId, type, latitude, longitude, accuracy } = body.data;
 
   const admin = createAdminClient();
 
@@ -50,9 +53,16 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!isWithinVenue(latitude, longitude, venue.latitude, venue.longitude, venue.radius_meters)) {
+  const distance = distanceMeters(latitude, longitude, venue.latitude, venue.longitude);
+  const allowance = Math.min(accuracy ?? 0, MAX_ACCURACY_ALLOWANCE_METERS);
+  if (distance - allowance > venue.radius_meters) {
     return NextResponse.json(
-      { error: "You must be at the event venue to generate a QR code." },
+      {
+        error: `You're about ${Math.round(distance)} m from ${venue.name}. You need to be within ${venue.radius_meters} m to sign ${type === "sign_in" ? "in" : "out"}.`,
+        code: "out_of_range",
+        distanceMeters: Math.round(distance),
+        radiusMeters: venue.radius_meters,
+      },
       { status: 403 }
     );
   }
@@ -106,5 +116,5 @@ export async function POST(request: Request) {
     details: { eventDayId, type },
   });
 
-  return NextResponse.json({ token, expiresAt: expiresAt.toISOString() });
+  return NextResponse.json({ token, issuedAt: now.toISOString(), expiresAt: expiresAt.toISOString() });
 }

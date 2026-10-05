@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,8 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CMAT Council Attendance",
+  title: { default: "CMAT Council Attendance", template: "%s · CMAT Attendance" },
   description: "QR-based attendance tracking for the CMAT departmental student council",
+  appleWebApp: { capable: true, title: "CMAT Attendance", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

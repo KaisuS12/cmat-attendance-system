@@ -1,55 +1,59 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { getCurrentProfile } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
+import { dayPatchSchema, dayWindowProblem } from "@/lib/schemas";
+import { parseJsonBody } from "@/lib/validation";
 
 // Partial update of a single day's windows — this is what lets an officer
 // extend sign-in by e.g. 15 minutes mid-event (§4.1). Because
 // generate-token always reads the current row, an extension takes effect
 // immediately for anyone who hasn't signed in yet — no separate "push" needed.
-const bodySchema = z.object({
-  signInStart: z.string().optional(),
-  signInEnd: z.string().optional(),
-  signOutStart: z.string().optional(),
-  signOutEnd: z.string().optional(),
-});
-
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string; dayId: string }> }
+  { params }: RouteContext<"/api/events/[id]/days/[dayId]">
 ) {
-  const profile = await getCurrentProfile();
-  if (!profile || (profile.role !== "officer" && profile.role !== "admin")) {
-    return NextResponse.json({ error: "Officers only." }, { status: 403 });
-  }
+  const { profile, error } = await requireRole("officer", "admin");
+  if (error) return error;
 
-  const { dayId } = await params;
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
-
-  const updates: Record<string, string> = {};
-  if (parsed.data.signInStart) updates.sign_in_start = parsed.data.signInStart;
-  if (parsed.data.signInEnd) updates.sign_in_end = parsed.data.signInEnd;
-  if (parsed.data.signOutStart) updates.sign_out_start = parsed.data.signOutStart;
-  if (parsed.data.signOutEnd) updates.sign_out_end = parsed.data.signOutEnd;
-
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No fields to update." }, { status: 400 });
-  }
-  updates.updated_at = new Date().toISOString();
+  const { id, dayId } = await params;
+  const body = await parseJsonBody(request, dayPatchSchema);
+  if (body.error) return body.error;
 
   const admin = createAdminClient();
-  const { data, error } = await admin
+  const { data: current } = await admin
+    .from("event_days")
+    .select("*")
+    .eq("id", dayId)
+    .eq("event_id", id)
+    .single();
+  if (!current) return NextResponse.json({ error: "Event day not found." }, { status: 404 });
+
+  const merged = {
+    signInStart: body.data.signInStart ?? current.sign_in_start,
+    signInEnd: body.data.signInEnd ?? current.sign_in_end,
+    signOutStart: body.data.signOutStart ?? current.sign_out_start,
+    signOutEnd: body.data.signOutEnd ?? current.sign_out_end,
+  };
+  const problem = dayWindowProblem(merged);
+  if (problem) return NextResponse.json({ error: problem.message }, { status: 400 });
+
+  const updates = {
+    sign_in_start: merged.signInStart,
+    sign_in_end: merged.signInEnd,
+    sign_out_start: merged.signOutStart,
+    sign_out_end: merged.signOutEnd,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error: updateError } = await admin
     .from("event_days")
     .update(updates)
     .eq("id", dayId)
     .select("*")
     .single();
 
-  if (error || !data) {
+  if (updateError || !data) {
     return NextResponse.json({ error: "Could not update event day." }, { status: 500 });
   }
 
@@ -58,7 +62,15 @@ export async function PATCH(
     action: "event_day_window_updated",
     entityType: "event_days",
     entityId: dayId,
-    details: updates,
+    details: {
+      before: {
+        sign_in_start: current.sign_in_start,
+        sign_in_end: current.sign_in_end,
+        sign_out_start: current.sign_out_start,
+        sign_out_end: current.sign_out_end,
+      },
+      after: updates,
+    },
   });
 
   return NextResponse.json({ eventDay: data });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as jose from "jose";
-import { getCurrentProfile } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyQrToken } from "@/lib/tokens";
 import { logAudit } from "@/lib/audit";
@@ -9,10 +9,8 @@ import { logAudit } from "@/lib/audit";
 const bodySchema = z.object({ token: z.string(), eventDayId: z.string().uuid().optional() });
 
 export async function POST(request: Request) {
-  const profile = await getCurrentProfile();
-  if (!profile || (profile.role !== "officer" && profile.role !== "admin")) {
-    return NextResponse.json({ error: "Officers only." }, { status: 403 });
-  }
+  const { profile, error: authError } = await requireRole("officer", "admin");
+  if (authError) return authError;
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) {
@@ -68,7 +66,10 @@ export async function POST(request: Request) {
 
   if (insertError || !record) {
     return NextResponse.json(
-      { error: "Attendance was already recorded for this student today." },
+      {
+        error: `Already ${payload.type === "sign_in" ? "signed in" : "signed out"} for this day.`,
+        code: "already_recorded",
+      },
       { status: 409 }
     );
   }

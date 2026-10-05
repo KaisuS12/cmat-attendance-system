@@ -1,5 +1,6 @@
 export type UserRole = "admin" | "officer" | "student";
 export type AttendanceType = "sign_in" | "sign_out";
+export type AttendanceMethod = "qr" | "manual";
 
 export interface Profile {
   id: string;
@@ -9,6 +10,9 @@ export interface Profile {
   program: string | null;
   year_level: string | null;
   section: string | null;
+  email: string | null;
+  must_change_password: boolean;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -70,7 +74,9 @@ export interface AttendanceRecord {
   event_day_id: string;
   student_id: string;
   type: AttendanceType;
-  qr_token_id: string;
+  qr_token_id: string | null;
+  method: AttendanceMethod;
+  manual_reason: string | null;
   scanned_by: string;
   recorded_at: string;
 }

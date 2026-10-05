@@ -1,47 +1,39 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentProfile } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
+import { generateTempPassword } from "@/lib/passwords";
+import { parseJsonBody } from "@/lib/validation";
 
 export async function GET() {
-  const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") {
-    return NextResponse.json({ error: "Admins only." }, { status: 403 });
-  }
+  const { error } = await requireRole("admin");
+  if (error) return error;
 
   const admin = createAdminClient();
-  const { data, error } = await admin
+  const { data, error: queryError } = await admin
     .from("profiles")
     .select("*")
     .eq("role", "officer")
     .order("full_name");
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (queryError) return NextResponse.json({ error: queryError.message }, { status: 500 });
   return NextResponse.json({ officers: data });
 }
 
 const bodySchema = z.object({
-  fullName: z.string().min(1),
-  email: z.string().email(),
+  fullName: z.string().trim().min(1, "Full name is required."),
+  email: z.email("Enter a valid email.").transform((e) => e.trim().toLowerCase()),
 });
-
-function generateTempPassword() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-}
 
 // Officer/Admin accounts are keyed by official school email (§7 recommendation).
 export async function POST(request: Request) {
-  const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") {
-    return NextResponse.json({ error: "Admins only." }, { status: 403 });
-  }
+  const { profile, error } = await requireRole("admin");
+  if (error) return error;
 
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
-  const { fullName, email } = parsed.data;
+  const body = await parseJsonBody(request, bodySchema);
+  if (body.error) return body.error;
+  const { fullName, email } = body.data;
 
   const admin = createAdminClient();
   const tempPassword = generateTempPassword();
@@ -53,9 +45,10 @@ export async function POST(request: Request) {
   });
 
   if (createError || !created.user) {
+    const exists = createError?.code === "email_exists" || createError?.status === 422;
     return NextResponse.json(
-      { error: createError?.message ?? "Could not create officer account." },
-      { status: 500 }
+      { error: exists ? "An account with this email already exists." : "Could not create officer account." },
+      { status: exists ? 409 : 500 }
     );
   }
 
@@ -63,6 +56,8 @@ export async function POST(request: Request) {
     id: created.user.id,
     role: "officer",
     full_name: fullName,
+    email,
+    must_change_password: true,
   });
 
   if (profileError) {

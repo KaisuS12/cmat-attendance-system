@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentProfile } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
-  const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") {
-    return NextResponse.json({ error: "Admins only." }, { status: 403 });
-  }
+  const { error: authError } = await requireRole("admin");
+  if (authError) return authError;
 
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Number(searchParams.get("limit") ?? 100), 500);

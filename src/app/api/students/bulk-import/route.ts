@@ -1,55 +1,76 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentProfile } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { studentIdToEmail } from "@/lib/constants";
+import {
+  IMPORT_MAX_ROWS_PER_REQUEST,
+  isValidStudentId,
+  normalizeStudentId,
+  studentIdToEmail,
+} from "@/lib/constants";
+import { generateTempPassword } from "@/lib/passwords";
 import { logAudit } from "@/lib/audit";
+import { parseJsonBody } from "@/lib/validation";
 
 // Bulk-creates student accounts from the CMAT masterlist (§9). Only usable
 // once written permission to use the masterlist has been secured — this
 // route just provides the technical capability, it does not itself grant
 // authorization to run it.
+const CONCURRENCY = 5;
+
 const rowSchema = z.object({
-  studentId: z.string().min(1),
-  fullName: z.string().min(1),
-  program: z.string().optional(),
-  yearLevel: z.string().optional(),
-  section: z.string().optional(),
+  studentId: z
+    .string()
+    .transform(normalizeStudentId)
+    .refine(isValidStudentId, "Student ID format is not recognized."),
+  fullName: z.string().trim().min(1, "Name is required."),
+  program: z.string().trim().optional(),
+  yearLevel: z.string().trim().optional(),
+  section: z.string().trim().optional(),
 });
 
-const bodySchema = z.object({ students: z.array(rowSchema).min(1).max(2000) });
+const bodySchema = z.object({ students: z.array(rowSchema).min(1).max(IMPORT_MAX_ROWS_PER_REQUEST) });
 
-function generateTempPassword() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-}
+type Row = z.infer<typeof rowSchema>;
+type Result = {
+  studentId: string;
+  fullName: string;
+  status: "created" | "exists" | "failed";
+  tempPassword?: string;
+  error?: string;
+};
 
 export async function POST(request: Request) {
-  const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") {
-    return NextResponse.json({ error: "Admins only." }, { status: 403 });
-  }
+  const { profile, error } = await requireRole("admin");
+  if (error) return error;
 
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  const body = await parseJsonBody(request, bodySchema);
+  if (body.error) return body.error;
 
   const admin = createAdminClient();
-  const results: { studentId: string; status: "created" | "failed"; tempPassword?: string; error?: string }[] = [];
 
-  for (const student of parsed.data.students) {
-    const email = studentIdToEmail(student.studentId);
+  // Skip IDs that already have an account, so re-running an import (or
+  // importing an updated masterlist) is safe.
+  const ids = body.data.students.map((s) => s.studentId);
+  const { data: existing } = await admin.from("profiles").select("student_id").in("student_id", ids);
+  const existingIds = new Set((existing ?? []).map((e) => e.student_id));
+
+  async function importOne(student: Row): Promise<Result> {
+    const base = { studentId: student.studentId, fullName: student.fullName };
+    if (existingIds.has(student.studentId)) return { ...base, status: "exists" };
+
     const tempPassword = generateTempPassword();
-
     const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email,
+      email: studentIdToEmail(student.studentId),
       password: tempPassword,
       email_confirm: true,
     });
 
     if (createError || !created.user) {
-      results.push({ studentId: student.studentId, status: "failed", error: createError?.message });
-      continue;
+      const exists = createError?.code === "email_exists";
+      return exists
+        ? { ...base, status: "exists" }
+        : { ...base, status: "failed", error: createError?.message ?? "Could not create account." };
     }
 
     const { error: profileError } = await admin.from("profiles").insert({
@@ -57,27 +78,42 @@ export async function POST(request: Request) {
       role: "student",
       full_name: student.fullName,
       student_id: student.studentId,
-      program: student.program ?? null,
-      year_level: student.yearLevel ?? null,
-      section: student.section ?? null,
+      program: student.program || null,
+      year_level: student.yearLevel || null,
+      section: student.section || null,
+      must_change_password: true,
     });
 
     if (profileError) {
       await admin.auth.admin.deleteUser(created.user.id);
-      results.push({ studentId: student.studentId, status: "failed", error: profileError.message });
-      continue;
+      return { ...base, status: "failed", error: profileError.message };
     }
 
-    results.push({ studentId: student.studentId, status: "created", tempPassword });
+    return { ...base, status: "created", tempPassword };
   }
+
+  // Bounded concurrency: fast enough to stay under the time limit, gentle
+  // enough not to trip Supabase Auth's admin rate limits.
+  const students = body.data.students;
+  const results: Result[] = new Array(students.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, students.length) }, async () => {
+      while (next < students.length) {
+        const i = next++;
+        results[i] = await importOne(students[i]);
+      }
+    })
+  );
 
   await logAudit({
     actorId: profile.id,
     action: "students_bulk_imported",
     entityType: "profiles",
     details: {
-      total: parsed.data.students.length,
+      total: students.length,
       created: results.filter((r) => r.status === "created").length,
+      existing: results.filter((r) => r.status === "exists").length,
       failed: results.filter((r) => r.status === "failed").length,
     },
   });

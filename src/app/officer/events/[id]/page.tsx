@@ -1,23 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ExtendWindowControl } from "@/components/ExtendWindowControl";
+import { EditWindowControl } from "@/components/EditWindowControl";
+import { AddDayForm } from "@/components/AddDayForm";
+import { DeleteEventButton } from "@/components/DeleteEventButton";
+import { DayAttendanceTable } from "@/components/DayAttendanceTable";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { Badge, btnPrimary, btnSecondary, PageTitle } from "@/components/ui";
+import { formatDayDate, formatShortDateTime, todayInAppTz, windowState } from "@/lib/datetime";
+import { dayCounts, loadDayAttendance } from "@/lib/reports";
 import type { EventDay, EventRecord, Venue } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
 type EventWithDays = EventRecord & { venues: Venue; event_days: EventDay[] };
 
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EventDetailPage({ params }: PageProps<"/officer/events/[id]">) {
   const { id } = await params;
   const supabase = await createClient();
 
@@ -29,76 +27,101 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   if (!event) notFound();
 
-  const dayIds = event.event_days.map((d) => d.id);
-  const { data: attendance } = await supabase
-    .from("attendance_records")
-    .select("*, profiles!attendance_records_student_id_fkey(full_name, student_id)")
-    .in("event_day_id", dayIds.length > 0 ? dayIds : ["00000000-0000-0000-0000-000000000000"]);
+  const days = [...event.event_days].sort((a, b) => a.day_date.localeCompare(b.day_date));
+  const byDay = await loadDayAttendance(supabase, days.map((d) => d.id));
+  const totalRecords = [...byDay.values()].reduce((n, rows) => n + rows.length, 0);
+  const today = todayInAppTz();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div>
+      <AutoRefresh intervalMs={30_000} />
+
       <Link href="/officer" className="text-sm text-slate-500 hover:text-slate-900">
-        ← Back
+        ← Events
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">{event.title}</h1>
-      <p className="text-sm text-slate-500">
-        {event.venues.name} · {event.venues.radius_meters}m radius
-      </p>
+      <div className="mt-2">
+        <PageTitle
+          title={event.title}
+          subtitle={
+            <>
+              {event.venues.name} · {event.venues.radius_meters} m radius
+            </>
+          }
+          actions={
+            <>
+              <a href={`/api/events/${event.id}/export`} className={btnSecondary}>
+                Export CSV
+              </a>
+              {totalRecords === 0 && <DeleteEventButton eventId={event.id} title={event.title} />}
+            </>
+          }
+        />
+        {event.description && <p className="mt-2 text-sm text-slate-600">{event.description}</p>}
+      </div>
 
       <div className="mt-6 space-y-5">
-        {event.event_days
-          .sort((a, b) => a.day_date.localeCompare(b.day_date))
-          .map((day) => {
-            const dayAttendance = (attendance ?? []).filter((a) => a.event_day_id === day.id);
-            return (
-              <div key={day.id} className="rounded-xl border border-slate-200 bg-white p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-slate-900">
-                    {new Date(day.day_date).toLocaleDateString(undefined, {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </h3>
-                  <Link
-                    href={`/officer/scan/${day.id}`}
-                    className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
-                  >
-                    Open scanner
-                  </Link>
-                </div>
+        {days.map((day) => {
+          const rows = byDay.get(day.id) ?? [];
+          const counts = dayCounts(rows);
+          const signIn = windowState(day.sign_in_start, day.sign_in_end);
+          const signOut = windowState(day.sign_out_start, day.sign_out_end);
+          const live = signIn === "open" || signOut === "open";
 
-                <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-slate-500">
-                      Sign-in: {fmt(day.sign_in_start)} – {fmt(day.sign_in_end)}
-                    </p>
-                    <ExtendWindowControl
-                      eventId={event.id}
-                      dayId={day.id}
-                      field="signInEnd"
-                      currentValue={day.sign_in_end}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-slate-500">
-                      Sign-out: {fmt(day.sign_out_start)} – {fmt(day.sign_out_end)}
-                    </p>
-                    <ExtendWindowControl
-                      eventId={event.id}
-                      dayId={day.id}
-                      field="signOutEnd"
-                      currentValue={day.sign_out_end}
-                    />
-                  </div>
+          return (
+            <section key={day.id} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold text-slate-900">{formatDayDate(day.day_date, "long")}</h2>
+                  {live ? (
+                    <Badge tone="green">Live</Badge>
+                  ) : day.day_date === today ? (
+                    <Badge tone="blue">Today</Badge>
+                  ) : null}
                 </div>
-
-                <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-                  {dayAttendance.length} record{dayAttendance.length === 1 ? "" : "s"}
-                </p>
+                <Link href={`/officer/scan/${day.id}`} className={btnPrimary}>
+                  Open scanner
+                </Link>
               </div>
-            );
-          })}
+
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Sign-in window</p>
+                  <p className="mt-0.5 text-slate-700">
+                    {formatShortDateTime(day.sign_in_start)} – {formatShortDateTime(day.sign_in_end)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Sign-out window</p>
+                  <p className="mt-0.5 text-slate-700">
+                    {formatShortDateTime(day.sign_out_start)} – {formatShortDateTime(day.sign_out_end)}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-2">
+                <EditWindowControl eventId={event.id} day={day} />
+              </div>
+
+              <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg border border-slate-100 p-2">
+                  <dt className="text-[11px] uppercase tracking-wide text-slate-400">Signed in</dt>
+                  <dd className="text-lg font-semibold tabular-nums text-slate-900">{counts.signedIn}</dd>
+                </div>
+                <div className="rounded-lg border border-slate-100 p-2">
+                  <dt className="text-[11px] uppercase tracking-wide text-slate-400">Signed out</dt>
+                  <dd className="text-lg font-semibold tabular-nums text-slate-900">{counts.signedOut}</dd>
+                </div>
+                <div className="rounded-lg border border-slate-100 p-2">
+                  <dt className="text-[11px] uppercase tracking-wide text-slate-400">Complete</dt>
+                  <dd className="text-lg font-semibold tabular-nums text-slate-900">{counts.complete}</dd>
+                </div>
+              </dl>
+
+              <DayAttendanceTable rows={rows} />
+            </section>
+          );
+        })}
+
+        <AddDayForm eventId={event.id} />
       </div>
     </div>
   );
