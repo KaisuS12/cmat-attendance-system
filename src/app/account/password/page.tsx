@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { MIN_PASSWORD_LENGTH } from "@/lib/constants";
 import { Alert, btnPrimary, cardClass, inputClass, labelClass, PageTitle } from "@/components/ui";
 
@@ -30,36 +29,25 @@ export default function ChangePasswordPage() {
     }
 
     setSaving(true);
-    const supabase = createClient();
-
-    // Confirm the current password first, so an unattended signed-in device
-    // can't be used to take over the account.
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user?.email) {
+    try {
+      // The server verifies the current password, sets the new one and clears
+      // the forced-change flag in one step.
+      const res = await fetch("/api/account/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Could not change your password.");
+        setSaving(false);
+        return;
+      }
+    } catch {
+      setError("Network error — try again.");
       setSaving(false);
-      setError("Your session has expired. Please log in again.");
       return;
     }
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
-    });
-    if (verifyError) {
-      setSaving(false);
-      setError("Your current password is incorrect.");
-      return;
-    }
-
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-    if (updateError) {
-      setSaving(false);
-      setError(updateError.message);
-      return;
-    }
-
-    await fetch("/api/account/password-changed", { method: "POST" });
 
     // Full navigation so the proxy re-reads the cleared flag and routes home.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full load is intended (see comment above)

@@ -4,7 +4,6 @@ import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { distanceMeters } from "@/lib/geofence";
 import { signQrToken, QR_TOKEN_TTL_MS } from "@/lib/tokens";
-import { logAudit } from "@/lib/audit";
 import { parseJsonBody } from "@/lib/validation";
 import type { EventDay, Venue } from "@/types/database";
 
@@ -20,6 +19,9 @@ const bodySchema = z.object({
 });
 
 const MAX_ACCURACY_ALLOWANCE_METERS = 50;
+// Each code lasts 60s, so a student never needs more than a few per minute;
+// more than this is a stuck button or someone hammering the endpoint.
+const MAX_TOKENS_PER_MINUTE = 6;
 
 export async function POST(request: Request) {
   const { profile, error: authError } = await requireRole("student");
@@ -30,6 +32,19 @@ export async function POST(request: Request) {
   const { eventDayId, type, latitude, longitude, accuracy } = body.data;
 
   const admin = createAdminClient();
+  const now = new Date();
+
+  const { count: recentTokens } = await admin
+    .from("qr_tokens")
+    .select("id", { count: "exact", head: true })
+    .eq("student_id", profile.id)
+    .gte("created_at", new Date(now.getTime() - 60_000).toISOString());
+  if ((recentTokens ?? 0) >= MAX_TOKENS_PER_MINUTE) {
+    return NextResponse.json(
+      { error: "Too many codes generated. Wait a moment and try again." },
+      { status: 429 }
+    );
+  }
 
   const { data: eventDay } = await admin
     .from("event_days")
@@ -42,7 +57,6 @@ export async function POST(request: Request) {
   }
 
   const venue = eventDay.events.venues;
-  const now = new Date();
   const windowStart = new Date(type === "sign_in" ? eventDay.sign_in_start : eventDay.sign_out_start);
   const windowEnd = new Date(type === "sign_in" ? eventDay.sign_in_end : eventDay.sign_out_end);
 
@@ -82,6 +96,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // Housekeeping: drop this student's own expired, never-scanned codes so
+  // qr_tokens doesn't grow forever. Bounded and cheap; no cron needed.
+  await admin
+    .from("qr_tokens")
+    .delete()
+    .eq("student_id", profile.id)
+    .is("used_at", null)
+    .lt("expires_at", new Date(now.getTime() - 10 * 60_000).toISOString());
+
   const expiresAt = new Date(now.getTime() + QR_TOKEN_TTL_MS);
 
   const { data: tokenRow, error } = await admin
@@ -108,13 +131,9 @@ export async function POST(request: Request) {
     type,
   });
 
-  await logAudit({
-    actorId: profile.id,
-    action: "qr_token_generated",
-    entityType: "qr_tokens",
-    entityId: tokenRow.id,
-    details: { eventDayId, type },
-  });
+  // Not audit-logged: students generate thousands of codes per event, which
+  // would bury the officer/admin actions the audit log exists for. The token
+  // row itself (with issue location) is the record.
 
   return NextResponse.json({ token, issuedAt: now.toISOString(), expiresAt: expiresAt.toISOString() });
 }

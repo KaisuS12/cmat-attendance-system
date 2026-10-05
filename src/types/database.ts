@@ -41,6 +41,8 @@ export interface EventRecord {
   venue_id: string;
   semester_id: string | null;
   created_by: string;
+  target_programs: string[] | null;
+  target_year_levels: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +80,9 @@ export interface AttendanceRecord {
   method: AttendanceMethod;
   manual_reason: string | null;
   scanned_by: string;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
   recorded_at: string;
 }
 
