@@ -23,6 +23,10 @@ const ACTION_LABELS: Record<string, string> = {
   password_changed: "Changed own password",
   account_deactivated: "Deactivated account",
   account_reactivated: "Reactivated account",
+  attendance_voided: "Voided attendance record",
+  event_updated: "Edited event",
+  event_day_removed: "Removed event day",
+  student_updated: "Edited student",
 };
 
 // High-volume entries are hidden by default so settings changes stand out.
@@ -88,8 +92,25 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
         {entries.length === 0 ? (
           <EmptyState>No matching activity.</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full min-w-[40rem] text-sm">
+          <>
+          <ul className="space-y-2 sm:hidden">
+            {entries.map((entry) => {
+              const actor = entry.profiles as unknown as { full_name: string; role: string } | null;
+              return (
+                <li key={entry.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                  <p className="font-medium text-slate-800">{ACTION_LABELS[entry.action] ?? entry.action}</p>
+                  <p className="text-xs text-slate-500">
+                    {actor?.full_name} ({actor?.role}) · {formatDateTime(entry.created_at)}
+                  </p>
+                  {entry.details && (
+                    <p className="mt-1 break-words text-xs text-slate-500">{formatDetails(entry.details)}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white sm:block">
+            <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-4 py-2">When</th>
@@ -117,6 +138,7 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

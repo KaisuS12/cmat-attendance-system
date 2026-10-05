@@ -92,6 +92,8 @@ export function Scanner({
   const [counts, setCounts] = useState(initialCounts);
   const [recent, setRecent] = useState<RecentScan[]>([]);
   const [now, setNow] = useState(() => Date.now());
+  // Flashlight control, set once the camera is running (null = unsupported).
+  const [torch, setTorch] = useState<{ on: boolean; apply: (on: boolean) => Promise<void> } | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 15_000);
@@ -101,6 +103,31 @@ export function Scanner({
   useEffect(() => {
     window.addEventListener("pointerdown", unlockAudio);
     return () => window.removeEventListener("pointerdown", unlockAudio);
+  }, []);
+
+  // Keep the scanning phone's screen on for the whole session.
+  useEffect(() => {
+    if (!("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let released = false;
+    const acquire = () => {
+      if (document.visibilityState !== "visible") return;
+      navigator.wakeLock
+        .request("screen")
+        .then((l) => {
+          if (released) l.release().catch(() => {});
+          else lock = l;
+        })
+        .catch(() => {});
+    };
+    acquire();
+    // The lock is dropped whenever the tab is hidden; take it again on return.
+    document.addEventListener("visibilitychange", acquire);
+    return () => {
+      released = true;
+      document.removeEventListener("visibilitychange", acquire);
+      lock?.release().catch(() => {});
+    };
   }, []);
 
   const signInState = windowState(day.sign_in_start, day.sign_in_end, now);
@@ -197,7 +224,18 @@ export function Scanner({
       .then(() => {
         // The effect was cleaned up (e.g. tab switch) before start() resolved —
         // stop it now that it's actually running, since the cleanup couldn't yet.
-        if (cancelledBeforeStart) scanner.stop().catch(() => {});
+        if (cancelledBeforeStart) {
+          scanner.stop().catch(() => {});
+          return;
+        }
+        // Gyms are often dim and phone screens reflect overhead lights; the
+        // flashlight helps the camera read the student's screen.
+        try {
+          const feature = scanner.getRunningTrackCameraCapabilities().torchFeature();
+          if (feature.isSupported()) setTorch({ on: false, apply: (on) => feature.apply(on) });
+        } catch {
+          // capabilities API unavailable on this browser
+        }
       })
       .catch(() =>
         setCameraError(
@@ -210,6 +248,7 @@ export function Scanner({
       // stop() throws synchronously (not a rejected Promise) if scanning
       // hasn't actually started yet, so only call it once isScanning is true.
       if (scanner.isScanning) scanner.stop().catch(() => {});
+      setTorch(null);
     };
   }, [tab, submitScan]);
 
@@ -251,7 +290,7 @@ export function Scanner({
             role="tab"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={`flex-1 rounded-md py-1.5 font-medium transition ${
+            className={`min-h-10 flex-1 rounded-md font-medium transition ${
               tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
             }`}
           >
@@ -269,7 +308,29 @@ export function Scanner({
               <Alert kind="error">{cameraError}</Alert>
             </div>
           )}
-          <div id={SCANNER_ELEMENT_ID} className="mt-4 overflow-hidden rounded-xl bg-black" />
+          <div className="relative -mx-4 mt-4 sm:mx-0">
+            <div id={SCANNER_ELEMENT_ID} className="overflow-hidden bg-black sm:rounded-xl" />
+            {torch && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const next = !torch.on;
+                  try {
+                    await torch.apply(next);
+                    setTorch({ ...torch, on: next });
+                  } catch {
+                    setTorch(null);
+                  }
+                }}
+                aria-pressed={torch.on}
+                className={`absolute right-3 top-3 min-h-11 rounded-full px-4 text-sm font-medium shadow ${
+                  torch.on ? "bg-amber-300 text-slate-900" : "bg-white/90 text-slate-800"
+                }`}
+              >
+                {torch.on ? "Light on" : "Light"}
+              </button>
+            )}
+          </div>
           <p className="mt-3 text-center text-xs text-slate-500">
             Check that the name shown matches the person in front of you.
           </p>

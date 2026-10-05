@@ -65,6 +65,22 @@ export default async function StudentDashboard() {
     .sort((a, b) => firstStart(a) - firstStart(b));
   const past = events.filter((e) => !happening.includes(e) && !upcoming.includes(e));
 
+  // The one thing to do right now, if any: the first open window today that
+  // the student hasn't completed yet. Shown as a big button at the top.
+  const nextAction = happening
+    .flatMap((event) =>
+      event.event_days.flatMap((day) =>
+        (["sign_in", "sign_out"] as const)
+          .filter((type) => {
+            const [start, end] =
+              type === "sign_in" ? [day.sign_in_start, day.sign_in_end] : [day.sign_out_start, day.sign_out_end];
+            return windowState(start, end, now) === "open" && !recordedSet.has(`${day.id}:${type}`);
+          })
+          .map((type) => ({ event, day, type }))
+      )
+    )
+    .at(0);
+
   function renderEvent(event: EventWithDays, interactive: boolean) {
     return (
       <div key={event.id} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
@@ -139,6 +155,23 @@ export default async function StudentDashboard() {
           </>
         }
       />
+
+      {nextAction && (
+        <section className="mt-5 rounded-2xl bg-slate-900 p-5 text-white shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+            {nextAction.type === "sign_in" ? "Sign-in is open" : "Sign-out is open"}
+          </p>
+          <h2 className="mt-1 text-lg font-semibold">{nextAction.event.title}</h2>
+          <p className="text-sm text-slate-300">
+            {nextAction.event.venues.name} · until{" "}
+            {formatTime(nextAction.type === "sign_in" ? nextAction.day.sign_in_end : nextAction.day.sign_out_end)}
+          </p>
+          <div className="mt-4">
+            <AttendanceAction eventDayId={nextAction.day.id} type={nextAction.type} size="lg" inverted />
+          </div>
+          <p className="mt-2 text-xs text-slate-400">Turn on Location. You must be at the venue.</p>
+        </section>
+      )}
 
       <section className="mt-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Happening today</h2>

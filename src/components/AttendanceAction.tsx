@@ -21,11 +21,17 @@ export function AttendanceAction({
   type,
   disabled,
   disabledReason,
+  size = "md",
+  inverted = false,
 }: {
   eventDayId: string;
   type: "sign_in" | "sign_out";
   disabled?: boolean;
   disabledReason?: string;
+  /** "lg" for the big call-to-action on the student home. */
+  size?: "md" | "lg";
+  /** Light button for use on a dark background. */
+  inverted?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<Status>("idle");
@@ -217,12 +223,20 @@ export function AttendanceAction({
       <button
         onClick={handleGenerate}
         disabled={disabled || busy}
-        className={`${btnPrimary} w-full sm:w-auto`}
+        className={`${
+          inverted
+            ? "inline-flex items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 disabled:opacity-50"
+            : btnPrimary
+        } w-full ${size === "lg" ? "min-h-14 text-base" : "min-h-11 sm:w-auto"}`}
       >
         {status === "locating" ? "Checking location..." : status === "requesting" ? "Generating..." : label}
       </button>
       {disabled && disabledReason && <p className="mt-1 text-xs text-slate-400">{disabledReason}</p>}
-      {error && <p className="mt-1.5 max-w-xs text-xs text-red-600">{error}</p>}
+      {error && (
+        <p className={`mt-1.5 max-w-xs text-xs ${inverted ? "rounded bg-white/95 px-2 py-1 text-red-700" : "text-red-600"}`}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
