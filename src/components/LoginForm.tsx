@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { studentIdToEmail } from "@/lib/constants";
@@ -50,13 +51,18 @@ export function LoginForm({ notice }: { notice: string | null }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white">
-            C
-          </span>
-          <h1 className="mt-3 text-xl font-semibold text-slate-900">CMAT Council Attendance</h1>
+          <Image
+            src="/brand/cmat-logo.jpg"
+            alt="College of Management, Accountancy and Technology — Kabankalan Catholic College, Inc."
+            width={144}
+            height={144}
+            className="h-28 w-28 rounded-2xl shadow-md sm:h-36 sm:w-36"
+            priority
+          />
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">CMAT Council Attendance</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to continue.</p>
         </div>
 

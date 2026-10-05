@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { formatDayDate, formatTime, requestTime } from "@/lib/datetime";
 import { Badge, EmptyState } from "@/components/ui";
@@ -98,6 +99,8 @@ export async function AttendanceRecordView({
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 print:border-0 print:p-0">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="flex items-start gap-3">
+          <Image src="/brand/cmat-emblem.png" alt="" width={56} height={56} className="h-14 w-14 shrink-0" />
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
               CMAT Council · Attendance record
@@ -110,6 +113,7 @@ export async function AttendanceRecordView({
               )}
             </p>
             <p className="mt-1 text-sm text-slate-500">{semester?.name ?? "All events"}</p>
+          </div>
           </div>
           <div className="text-right">
             <p className="text-3xl font-semibold text-slate-900 tabular-nums">
