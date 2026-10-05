@@ -149,46 +149,202 @@ export interface EventSummary {
   signedIn: number; // of those, student-days with a sign-in
 }
 
-// Attendance rate per finished event in a semester (events with no semester
-// count toward the active one), most recent first.
-export async function loadSemesterSummary(
+export interface AnalyticsEvent extends EventTargets {
+  id: string;
+  title: string;
+  event_days: { id: string; day_date: string; sign_out_end: string }[];
+}
+
+export interface TrendPoint {
+  dayId: string;
+  eventId: string;
+  title: string;
+  date: string;
+  expected: number;
+  signedIn: number;
+  rate: number; // 0–1
+}
+
+export interface GroupStat {
+  label: string;
+  expected: number;
+  signedIn: number;
+  rate: number; // 0–1
+}
+
+export interface WatchRow {
+  student: StudentSummary;
+  attended: number; // finished required days with sign-in and sign-out
+  required: number; // finished days of events meant for this student
+  rate: number; // 0–1
+}
+
+export interface SemesterAnalytics {
+  eventsHeld: number;
+  averageRate: number | null;
+  totalCheckIns: number;
+  watchCount: number;
+  trend: TrendPoint[];
+  byProgram: GroupStat[];
+  byYear: GroupStat[];
+  methods: { qr: number; manual: number };
+  watchList: WatchRow[];
+  recent: EventSummary[];
+}
+
+// A student is "to watch" below this share of required days attended.
+export const WATCH_THRESHOLD = 0.5;
+const WATCH_LIST_SIZE = 10;
+
+function yearLabel(value: string | null): string {
+  const v = (value ?? "").trim();
+  if (!v) return "Unassigned";
+  return /^\d+$/.test(v) ? `Year ${v}` : v;
+}
+
+function groupKey(value: string | null): string {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+// Pure aggregation behind the dashboard analytics, kept separate from the
+// database calls so it can be unit-tested. Only finished event days count,
+// and each event only counts the students it was meant for.
+export function computeSemesterAnalytics({
+  events,
+  byDay,
+  students,
+  now,
+}: {
+  events: AnalyticsEvent[];
+  byDay: Map<string, DayAttendanceRow[]>;
+  students: StudentSummary[];
+  now: number;
+}): SemesterAnalytics {
+  const finished = events
+    .map((e) => ({
+      ...e,
+      event_days: e.event_days
+        .filter((d) => new Date(d.sign_out_end).getTime() <= now)
+        .sort((a, b) => a.day_date.localeCompare(b.day_date)),
+    }))
+    .filter((e) => e.event_days.length > 0);
+
+  const trend: TrendPoint[] = [];
+  const recent: EventSummary[] = [];
+  const programs = new Map<string, GroupStat>();
+  const years = new Map<string, GroupStat>();
+  const perStudent = new Map<string, WatchRow>();
+  const methods = { qr: 0, manual: 0 };
+  let totalExpected = 0;
+  let totalSignedIn = 0;
+
+  const bump = (map: Map<string, GroupStat>, key: string, label: string, signedIn: boolean) => {
+    const stat = map.get(key) ?? { label, expected: 0, signedIn: 0, rate: 0 };
+    stat.expected++;
+    if (signedIn) stat.signedIn++;
+    map.set(key, stat);
+  };
+
+  for (const event of finished) {
+    const eligible = students.filter((s) => isEventForStudent(event, s));
+    let eventSignedIn = 0;
+
+    for (const day of event.event_days) {
+      const rows = byDay.get(day.id) ?? [];
+      const signedInIds = new Set<string>();
+      const completeIds = new Set<string>();
+      for (const r of rows) {
+        if (r.signIn) {
+          signedInIds.add(r.student.id);
+          if (r.signIn.method === "manual") methods.manual++;
+          else methods.qr++;
+        }
+        if (r.signIn && r.signOut) completeIds.add(r.student.id);
+      }
+
+      let daySignedIn = 0;
+      for (const s of eligible) {
+        const inToday = signedInIds.has(s.id);
+        if (inToday) daySignedIn++;
+        bump(programs, groupKey(s.program) || "~", s.program?.trim() || "Unassigned", inToday);
+        bump(years, groupKey(s.year_level) || "~", yearLabel(s.year_level), inToday);
+
+        const w = perStudent.get(s.id) ?? { student: s, attended: 0, required: 0, rate: 0 };
+        w.required++;
+        if (completeIds.has(s.id)) w.attended++;
+        perStudent.set(s.id, w);
+      }
+
+      trend.push({
+        dayId: day.id,
+        eventId: event.id,
+        title: event.title,
+        date: day.day_date,
+        expected: eligible.length,
+        signedIn: daySignedIn,
+        rate: eligible.length > 0 ? daySignedIn / eligible.length : 0,
+      });
+      eventSignedIn += daySignedIn;
+      totalExpected += eligible.length;
+      totalSignedIn += daySignedIn;
+    }
+
+    recent.push({
+      id: event.id,
+      title: event.title,
+      lastDay: event.event_days[event.event_days.length - 1].day_date,
+      expected: eligible.length * event.event_days.length,
+      signedIn: eventSignedIn,
+    });
+  }
+
+  trend.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+  recent.sort((a, b) => b.lastDay.localeCompare(a.lastDay));
+
+  const finalize = (map: Map<string, GroupStat>) =>
+    [...map.values()]
+      .map((g) => ({ ...g, rate: g.expected > 0 ? g.signedIn / g.expected : 0 }))
+      .sort((a, b) => b.rate - a.rate || a.label.localeCompare(b.label, undefined, { numeric: true }));
+
+  const watching = [...perStudent.values()]
+    .map((w) => ({ ...w, rate: w.required > 0 ? w.attended / w.required : 1 }))
+    .filter((w) => w.required > 0 && w.rate < WATCH_THRESHOLD)
+    .sort((a, b) => a.rate - b.rate || a.student.full_name.localeCompare(b.student.full_name));
+
+  return {
+    eventsHeld: finished.length,
+    averageRate: totalExpected > 0 ? totalSignedIn / totalExpected : null,
+    totalCheckIns: methods.qr + methods.manual,
+    watchCount: watching.length,
+    trend,
+    byProgram: finalize(programs),
+    byYear: finalize(years),
+    methods,
+    watchList: watching.slice(0, WATCH_LIST_SIZE),
+    recent,
+  };
+}
+
+// Loads everything the dashboard analytics need for one semester (events
+// with no semester count toward the active one).
+export async function loadSemesterAnalytics(
   client: SupabaseClient,
   semester: { id: string; is_active: boolean },
   now: number
-): Promise<EventSummary[]> {
+): Promise<SemesterAnalytics> {
   const { data } = await client
     .from("events")
     .select("id, title, target_programs, target_year_levels, event_days(id, day_date, sign_out_end)")
     .or(semester.is_active ? `semester_id.eq.${semester.id},semester_id.is.null` : `semester_id.eq.${semester.id}`);
-  type Ev = EventTargets & {
-    id: string;
-    title: string;
-    event_days: { id: string; day_date: string; sign_out_end: string }[];
-  };
-  const events = ((data ?? []) as Ev[])
-    .map((e) => ({ ...e, event_days: e.event_days.filter((d) => new Date(d.sign_out_end).getTime() <= now) }))
-    .filter((e) => e.event_days.length > 0);
-  if (events.length === 0) return [];
+  const events = (data ?? []) as AnalyticsEvent[];
 
-  const [byDay, everyone] = await Promise.all([
-    loadDayAttendance(client, events.flatMap((e) => e.event_days.map((d) => d.id))),
+  const finishedDayIds = events.flatMap((e) =>
+    e.event_days.filter((d) => new Date(d.sign_out_end).getTime() <= now).map((d) => d.id)
+  );
+  const [byDay, students] = await Promise.all([
+    loadDayAttendance(client, finishedDayIds),
     loadEligibleStudents(client, { target_programs: null, target_year_levels: null }),
   ]);
 
-  return events
-    .map((e) => {
-      const eligibleIds = new Set(everyone.filter((s) => isEventForStudent(e, s)).map((s) => s.id));
-      let signedIn = 0;
-      for (const d of e.event_days) {
-        signedIn += (byDay.get(d.id) ?? []).filter((r) => r.signIn && eligibleIds.has(r.student.id)).length;
-      }
-      return {
-        id: e.id,
-        title: e.title,
-        lastDay: e.event_days.map((d) => d.day_date).sort().at(-1)!,
-        expected: eligibleIds.size * e.event_days.length,
-        signedIn,
-      };
-    })
-    .sort((a, b) => b.lastDay.localeCompare(a.lastDay));
+  return computeSemesterAnalytics({ events, byDay, students, now });
 }
