@@ -58,7 +58,7 @@ export default function ChangePasswordPage() {
     <div className="mx-auto max-w-md">
       <PageTitle
         title="Change password"
-        subtitle="If you were given a temporary password, set your own before continuing."
+        subtitle="If you were given a temporary password, set your own so only you know it."
       />
 
       <form onSubmit={handleSubmit} className={`${cardClass} mt-6 space-y-4`}>

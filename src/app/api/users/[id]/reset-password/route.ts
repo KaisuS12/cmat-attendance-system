@@ -6,8 +6,8 @@ import { generateTempPassword } from "@/lib/passwords";
 import { rememberTempPassword } from "@/lib/temp-passwords";
 
 // Reset for a student or officer who forgot their password.
-// The new temporary password is returned once; the user must change it on
-// their next login.
+// The new temporary password is returned once; the user is reminded (not
+// forced) to set their own after logging in.
 //
 // Officers may reset students (forgotten passwords are common at the event
 // entrance); officer and admin accounts can only be reset by an admin.

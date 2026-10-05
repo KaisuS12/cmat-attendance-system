@@ -61,10 +61,10 @@ for the full design doc this app implements.
 
 1. **Semesters** → create the current semester and set it active.
 2. **Officers** → add officer accounts (school email). Give each officer their temporary password privately; they
-   must change it on first login.
+   are reminded to set their own after logging in.
 3. **Students → Import masterlist** → upload the masterlist CSV (only once written permission to use it has been
    secured, §9). Download the credentials file at the end and distribute each student's temporary password
-   privately. Students must change it on first login.
+   privately. Students are reminded to set their own after logging in.
 4. **Events** → create an event. Stand at the venue and use **Use my current location** to set its coordinates.
    Saved venues can be reused for later events.
 
@@ -104,7 +104,7 @@ for the full design doc this app implements.
 | §4.4 Attendance history for clearance | `src/components/AttendanceRecordView.tsx` (printable); `GET /api/semesters/[id]/export` |
 | §5 GPS geofencing | `src/lib/geofence.ts`, enforced server-side in `POST /api/attendance/generate-token` |
 | §6 On-demand, non-permanent QR | QR rendered client-side from a server-issued token per action, never stored as an image |
-| §7 Auth | Students: student ID → synthetic email (`src/lib/constants.ts`). Officers/Admins: school email. Forced password change after any admin-issued password |
+| §7 Auth | Students: student ID → synthetic email (`src/lib/constants.ts`). Officers/Admins: school email. Reminder banner to change any admin-issued temporary password |
 | §9 Masterlist import | `/admin/students/import` → `POST /api/students/bulk-import` (chunked) |
 | §11 Manual override | Scanner **Manual entry** tab → `POST /api/attendance/manual` |
 | §11 Reporting/export | Per-event CSV, per-semester clearance CSV, printable student record |

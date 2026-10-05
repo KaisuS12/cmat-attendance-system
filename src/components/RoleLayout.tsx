@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { AppHeader, HAS_BOTTOM_NAV, NAV } from "@/components/AppHeader";
@@ -29,7 +30,6 @@ export async function RoleLayout({ section, children }: { section: Section; chil
 
   if (!profile) redirect("/api/auth/sign-out?reason=noprofile");
   if (profile.is_active === false) redirect("/api/auth/sign-out?reason=deactivated");
-  if (profile.must_change_password === true && section !== "account") redirect("/account/password");
   if (!ALLOWED[profile.role]?.includes(section)) redirect(ROLE_HOME[profile.role] ?? "/login");
 
   const bottomNav = HAS_BOTTOM_NAV[profile.role];
@@ -42,6 +42,16 @@ export async function RoleLayout({ section, children }: { section: Section; chil
           bottomNav ? "pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-8" : ""
         }`}
       >
+        {/* Changing a temporary password is optional, but encouraged: until it's
+            changed, officers can still look the temporary one up. */}
+        {profile.must_change_password === true && section !== "account" && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 print:hidden">
+            <span>You&apos;re using a temporary password. Set your own to keep your account private.</span>
+            <Link href="/account/password" className="font-semibold underline">
+              Change password
+            </Link>
+          </div>
+        )}
         {children}
       </main>
       {bottomNav && <BottomNav items={NAV[profile.role]} />}

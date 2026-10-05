@@ -7,7 +7,6 @@ const ROLE_HOME: Record<string, string> = {
   student: "/student",
 };
 
-const PASSWORD_PAGE = "/account/password";
 
 export async function proxy(request: NextRequest) {
   // Scheduled jobs (Vercel Cron) have no user session; those routes check
@@ -58,8 +57,8 @@ export async function proxy(request: NextRequest) {
 
   // Everything below needs the profile, which costs a database round trip.
   // Only the entry points ("/" and "/login") need it here, to send the user
-  // to their role's home. Section access, deactivation and the forced
-  // password change are enforced by the section layouts (RoleLayout), which
+  // to their role's home. Section access and deactivation are enforced by
+  // the section layouts (RoleLayout), which
   // load the profile anyway; API routes enforce roles with requireRole.
   if (path !== "/" && path !== "/login") return response;
 
@@ -81,7 +80,7 @@ export async function proxy(request: NextRequest) {
     return redirectTo("/login?deactivated=1");
   }
 
-  return redirectTo(profile?.must_change_password === true ? PASSWORD_PAGE : ROLE_HOME[role]);
+  return redirectTo(ROLE_HOME[role]);
 }
 
 export const config = {
