@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccountActions } from "@/components/AccountActions";
+import { TempPasswordReveal } from "@/components/TempPasswordReveal";
 import { Badge, btnSecondary, EmptyState, inputClass } from "@/components/ui";
 import type { Profile } from "@/types/database";
 
@@ -95,6 +96,9 @@ export async function StudentDirectory({
                       <p className="text-sm text-slate-500">
                         {s.student_id} · {groupLabel(s) || "—"}
                       </p>
+                      <div className="mt-1.5">
+                        <TempPasswordReveal studentId={s.id} hasTempPassword={s.must_change_password === true} />
+                      </div>
                     </div>
                     {!s.is_active && <Badge tone="red">Deactivated</Badge>}
                   </div>
@@ -111,6 +115,7 @@ export async function StudentDirectory({
                     <th className="px-4 py-2">Name</th>
                     <th className="px-4 py-2">Student ID</th>
                     <th className="px-4 py-2">Program / Section</th>
+                    <th className="px-4 py-2">Temporary password</th>
                     <th className="px-4 py-2" />
                   </tr>
                 </thead>
@@ -133,6 +138,9 @@ export async function StudentDirectory({
                       </td>
                       <td className="px-4 py-2.5 text-slate-600">{s.student_id}</td>
                       <td className="px-4 py-2.5 text-slate-600">{groupLabel(s)}</td>
+                      <td className="px-4 py-2.5">
+                        <TempPasswordReveal studentId={s.id} hasTempPassword={s.must_change_password === true} />
+                      </td>
                       <td className="px-4 py-2.5 text-right">{actions(s)}</td>
                     </tr>
                   ))}

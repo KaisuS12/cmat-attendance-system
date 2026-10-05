@@ -27,6 +27,7 @@ const ACTION_LABELS: Record<string, string> = {
   event_updated: "Edited event",
   event_day_removed: "Removed event day",
   student_updated: "Edited student",
+  temp_password_viewed: "Viewed temporary password",
 };
 
 // High-volume entries are hidden by default so settings changes stand out.

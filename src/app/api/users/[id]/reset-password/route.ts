@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
 import { generateTempPassword } from "@/lib/passwords";
+import { rememberTempPassword } from "@/lib/temp-passwords";
 
 // Reset for a student or officer who forgot their password.
 // The new temporary password is returned once; the user must change it on
@@ -33,6 +34,8 @@ export async function POST(_request: Request, { params }: RouteContext<"/api/use
   }
 
   await admin.from("profiles").update({ must_change_password: true }).eq("id", id);
+  // Students' temporary passwords stay viewable by officers until changed.
+  if (target.role === "student") await rememberTempPassword(admin, id, tempPassword, profile.id);
 
   await logAudit({
     actorId: profile.id,

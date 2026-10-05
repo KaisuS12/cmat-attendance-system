@@ -4,6 +4,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
+import { forgetTempPassword } from "@/lib/temp-passwords";
 import { MIN_PASSWORD_LENGTH } from "@/lib/constants";
 import { parseJsonBody } from "@/lib/validation";
 
@@ -60,6 +61,8 @@ export async function POST(request: Request) {
   }
 
   await admin.from("profiles").update({ must_change_password: false }).eq("id", profile.id);
+  // The temporary password is no longer valid; never keep it around.
+  await forgetTempPassword(admin, profile.id);
 
   await logAudit({
     actorId: profile.id,

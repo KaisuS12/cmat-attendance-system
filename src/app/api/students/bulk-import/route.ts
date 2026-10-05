@@ -10,6 +10,7 @@ import {
 } from "@/lib/constants";
 import { generateTempPassword } from "@/lib/passwords";
 import { logAudit } from "@/lib/audit";
+import { rememberTempPassword } from "@/lib/temp-passwords";
 import { parseJsonBody } from "@/lib/validation";
 
 // Bulk-creates student accounts from the CMAT masterlist (§9). Only usable
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
   if (body.error) return body.error;
 
   const admin = createAdminClient();
+  const actorId = profile.id;
 
   // Skip IDs that already have an account, so re-running an import (or
   // importing an updated masterlist) is safe.
@@ -110,6 +112,7 @@ export async function POST(request: Request) {
       return { ...base, status: "failed", error: profileError.message };
     }
 
+    await rememberTempPassword(admin, created.user.id, tempPassword, actorId);
     return { ...base, status: "created", tempPassword };
   }
 

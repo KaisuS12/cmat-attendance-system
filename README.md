@@ -28,6 +28,8 @@ for the full design doc this app implements.
      on projects created with "automatically expose new tables" turned off (safe to run either way).
    - [`supabase/migrations/0004_targeting_corrections.sql`](./supabase/migrations/0004_targeting_corrections.sql) —
      program/year-specific events and voidable attendance records. **Required** by the current app.
+   - [`supabase/migrations/0005_temp_passwords.sql`](./supabase/migrations/0005_temp_passwords.sql) — lets officers
+     view a student's *temporary* password until the student sets their own. **Required** by the current app.
 3. In Supabase → **Authentication → Sign In / Providers**, turn **off** “Allow new users to sign up”. All accounts are
    created by admins; leaving public sign-up on lets anyone create an account with the public anon key.
 4. Copy `.env.example` to `.env.local` and fill in:
