@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AddStudentForm } from "@/components/AddStudentForm";
 import { StudentDirectory, parseDirectoryParams } from "@/components/StudentDirectory";
 import { btnPrimary, PageTitle } from "@/components/ui";
 
@@ -17,6 +18,9 @@ export default async function StudentsPage({ searchParams }: PageProps<"/admin/s
           </Link>
         }
       />
+      <div className="mt-4">
+        <AddStudentForm />
+      </div>
       <div className="mt-4">
         <StudentDirectory basePath="/admin/students" q={q} page={page} mode="admin" />
       </div>
