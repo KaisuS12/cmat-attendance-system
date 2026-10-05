@@ -41,7 +41,7 @@ export function AppHeader({ profile }: { profile: Profile | null }) {
   const bottomNav = profile ? HAS_BOTTOM_NAV[profile.role] : false;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur print:hidden">
+    <header className="sticky top-0 z-30 border-b-2 border-gold-400 bg-white/95 backdrop-blur print:hidden">
       {/* CMAT gold accent bar */}
       <div className="h-1 bg-gradient-to-r from-gold-500 via-gold-400 to-gold-300" aria-hidden="true" />
       <div className={`mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 ${bottomNav ? "py-2.5 sm:pb-0 sm:pt-3" : "pt-3"}`}>

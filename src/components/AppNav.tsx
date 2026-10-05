@@ -50,7 +50,7 @@ export function AppNav({ items, hideOnPhone }: { items: NavItem[]; hideOnPhone: 
 
   return (
     <nav className={`mx-auto max-w-4xl overflow-x-auto px-4 ${hideOnPhone ? "hidden sm:block" : ""}`}>
-      <ul className="flex gap-1 whitespace-nowrap">
+      <ul className="flex gap-1 whitespace-nowrap pt-1">
         {allItems.map((item) => {
           const active = isNavActive(item, pathname);
           return (
@@ -58,10 +58,10 @@ export function AppNav({ items, hideOnPhone }: { items: NavItem[]; hideOnPhone: 
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`inline-flex min-h-11 items-center border-b-2 px-3 text-sm font-medium transition ${
+                className={`-mb-0.5 inline-flex min-h-11 items-center rounded-t-lg border-b-[3px] px-3 text-sm font-medium transition ${
                   active
-                    ? "border-gold-400 font-semibold text-brand-800"
-                    : "border-transparent text-slate-500 hover:border-gold-300 hover:text-brand-700"
+                    ? "border-gold-500 bg-gold-100 font-semibold text-brand-800"
+                    : "border-transparent text-slate-500 hover:border-gold-300 hover:bg-gold-100/50 hover:text-brand-700"
                 }`}
               >
                 {item.label}
@@ -81,10 +81,10 @@ export function BottomNav({ items }: { items: NavItem[] }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur sm:hidden print:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-gold-400 bg-white/95 backdrop-blur sm:hidden print:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="mx-auto flex max-w-md">
+      <ul className="mx-auto flex max-w-md gap-1 px-2 py-1">
         {allItems.map((item) => {
           const active = isNavActive(item, pathname);
           return (
@@ -92,13 +92,10 @@ export function BottomNav({ items }: { items: NavItem[] }) {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
-                  active ? "text-brand-700" : "text-slate-400"
+                className={`relative flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium transition ${
+                  active ? "bg-gold-100 font-semibold text-brand-800 ring-1 ring-inset ring-gold-400/70" : "text-slate-500"
                 }`}
               >
-                {active && (
-                  <span className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-gold-400" aria-hidden="true" />
-                )}
                 {item.icon && <Icon name={item.icon} />}
                 {item.short ?? item.label}
               </Link>
