@@ -44,7 +44,14 @@ export function AppHeader({ profile }: { profile: Profile | null }) {
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur print:hidden">
       <div className={`mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 ${bottomNav ? "py-2.5 sm:pb-0 sm:pt-3" : "pt-3"}`}>
         <Link href={profile ? HOME[profile.role] : "/"} className="flex min-h-9 items-center gap-2">
-          <Image src="/brand/cmat-emblem.png" alt="" width={32} height={32} className="h-8 w-8" priority />
+          <Image
+            src="/brand/cmat-logo.png"
+            alt="CMAT logo"
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain"
+            priority
+          />
           <span className="text-sm font-semibold text-slate-900">CMAT Attendance</span>
         </Link>
         <div className="flex items-center gap-4">

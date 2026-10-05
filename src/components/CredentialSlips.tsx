@@ -62,7 +62,7 @@ function SlipSheet({ credentials }: { credentials: SlipCredential[] }) {
               <div key={s.studentId} className="slip-card border border-dashed border-slate-400 p-3 text-xs">
                 <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                   {/* eslint-disable-next-line @next/next/no-img-element -- plain img so it's already loaded when printing */}
-                  <img src="/brand/cmat-emblem.png" alt="" className="h-5 w-5" />
+                  <img src="/brand/cmat-logo.png" alt="" className="h-6 w-6 object-contain" />
                   CMAT Council Attendance
                 </p>
                 <p className="mt-1 text-sm font-semibold">{s.fullName}</p>

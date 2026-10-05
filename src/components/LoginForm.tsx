@@ -55,11 +55,11 @@ export function LoginForm({ notice }: { notice: string | null }) {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <Image
-            src="/brand/cmat-logo.jpg"
+            src="/brand/cmat-logo.png"
             alt="College of Management, Accountancy and Technology — Kabankalan Catholic College, Inc."
-            width={144}
-            height={144}
-            className="h-28 w-28 rounded-2xl shadow-md sm:h-36 sm:w-36"
+            width={160}
+            height={162}
+            className="h-32 w-32 object-contain drop-shadow-sm sm:h-40 sm:w-40"
             priority
           />
           <h1 className="mt-4 text-xl font-semibold text-slate-900">CMAT Council Attendance</h1>
