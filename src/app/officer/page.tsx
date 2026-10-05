@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Badge, btnPrimary, EmptyState, PageTitle } from "@/components/ui";
 import { formatDayDate, todayInAppTz, windowState, requestTime } from "@/lib/datetime";
+import { describeTargets, isTargeted } from "@/lib/eligibility";
 import type { EventDay, EventRecord, Venue } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,11 @@ export default async function OfficerDashboard() {
         <p className="mt-0.5 text-sm text-slate-500">
           {event.venues.name} · {dateRange(event.event_days)}
         </p>
+        {isTargeted(event) && (
+          <p className="mt-2">
+            <Badge tone="blue">{describeTargets(event)}</Badge>
+          </p>
+        )}
       </Link>
     );
   }

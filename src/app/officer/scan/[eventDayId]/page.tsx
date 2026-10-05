@@ -23,7 +23,8 @@ export default async function ScannerPage({ params }: PageProps<"/officer/scan/[
       .from("attendance_records")
       .select("id", { count: "exact", head: true })
       .eq("event_day_id", eventDayId)
-      .eq("type", type);
+      .eq("type", type)
+      .is("voided_at", null);
   const [{ count: signIns }, { count: signOuts }] = await Promise.all([countFor("sign_in"), countFor("sign_out")]);
 
   return (

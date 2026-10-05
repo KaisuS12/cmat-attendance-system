@@ -5,6 +5,7 @@ import { csvResponse } from "@/lib/csv";
 import { formatDayDate } from "@/lib/datetime";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 import { loadDayAttendance, type StudentSummary } from "@/lib/reports";
+import { isEventForStudent, type EventTargets } from "@/lib/eligibility";
 import type { EventDay } from "@/types/database";
 
 // Clearance sheet: every student × every event day in the semester, plus
@@ -23,12 +24,12 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/seme
   // the current one (matching what students see on their record).
   const { data: events } = await admin
     .from("events")
-    .select("title, event_days(*)")
+    .select("title, target_programs, target_year_levels, event_days(*)")
     .or(semester.is_active ? `semester_id.eq.${id},semester_id.is.null` : `semester_id.eq.${id}`)
-    .overrideTypes<{ title: string; event_days: EventDay[] }[], { merge: false }>();
+    .overrideTypes<(EventTargets & { title: string; event_days: EventDay[] })[], { merge: false }>();
 
   const columns = (events ?? [])
-    .flatMap((e) => e.event_days.map((d) => ({ title: e.title, day: d })))
+    .flatMap((e) => e.event_days.map((d) => ({ title: e.title, event: e, day: d })))
     .sort((a, b) => a.day.sign_in_start.localeCompare(b.day.sign_in_start));
 
   const byDay = await loadDayAttendance(admin, columns.map((c) => c.day.id));
@@ -61,12 +62,19 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/seme
       "Section",
       ...columns.map((c) => `${c.title} (${formatDayDate(c.day.day_date, "numeric")})`),
       "Days present",
-      "Total days",
+      "Required days",
     ],
   ];
 
+  // Days of events meant for other programs/years are "N/A" for a student
+  // (unless they attended anyway) and don't count toward their total.
   for (const s of students) {
-    const cells = columns.map((c) => status.get(`${c.day.id}:${s.id}`) ?? "Absent");
+    const cells = columns.map((c) => {
+      const recorded = status.get(`${c.day.id}:${s.id}`);
+      if (recorded) return recorded;
+      return isEventForStudent(c.event, s) ? "Absent" : "N/A";
+    });
+    const required = columns.filter((c) => isEventForStudent(c.event, s));
     rows.push([
       s.student_id,
       s.full_name,
@@ -74,8 +82,8 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/seme
       s.year_level,
       s.section,
       ...cells,
-      cells.filter((c) => c === "Present").length,
-      columns.length,
+      required.filter((c) => status.get(`${c.day.id}:${s.id}`) === "Present").length,
+      required.length,
     ]);
   }
 

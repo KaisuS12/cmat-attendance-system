@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DayWindowFields, dayToPayload, emptyDay, withDate, type DayInput } from "@/components/DayWindowFields";
+import { TargetPicker, type Targets } from "@/components/TargetPicker";
 import { Alert, btnPrimary, btnSecondary, inputClass, labelClass, PageTitle } from "@/components/ui";
 import type { Venue } from "@/types/database";
 
@@ -27,6 +28,7 @@ export default function NewEventPage() {
   const [radiusMeters, setRadiusMeters] = useState("150");
   const [locating, setLocating] = useState(false);
   const [days, setDays] = useState<DayInput[]>([emptyDay()]);
+  const [targets, setTargets] = useState<Targets>({ programs: [], yearLevels: [] });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -102,7 +104,14 @@ export default function NewEventPage() {
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, venue, days: payloads }),
+        body: JSON.stringify({
+          title,
+          description,
+          venue,
+          days: payloads,
+          targetPrograms: targets.programs,
+          targetYearLevels: targets.yearLevels,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -157,6 +166,11 @@ export default function NewEventPage() {
             />
           </div>
         </div>
+
+        <fieldset className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+          <legend className="px-1 text-sm font-semibold text-slate-900">Who should attend</legend>
+          <TargetPicker value={targets} onChange={setTargets} />
+        </fieldset>
 
         <fieldset className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
           <legend className="px-1 text-sm font-semibold text-slate-900">Venue</legend>

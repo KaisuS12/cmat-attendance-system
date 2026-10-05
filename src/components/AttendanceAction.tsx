@@ -62,6 +62,7 @@ export function AttendanceAction({
         .from("attendance_records")
         .select("id")
         .eq("qr_token_id", tokenId)
+        .is("voided_at", null)
         .maybeSingle();
       if (data) setStatus("recorded");
     }, 2000);

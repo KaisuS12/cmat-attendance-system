@@ -4,6 +4,7 @@ import { AttendanceAction } from "@/components/AttendanceAction";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import { formatDayDate, formatTime, todayInAppTz, windowState, type WindowState, requestTime } from "@/lib/datetime";
+import { isEventForStudent } from "@/lib/eligibility";
 import type { EventDay, EventRecord, Venue } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -41,13 +42,16 @@ export default async function StudentDashboard() {
   const { data: myRecords } = await supabase
     .from("attendance_records")
     .select("event_day_id, type")
-    .eq("student_id", profile?.id ?? "");
+    .eq("student_id", profile?.id ?? "")
+    .is("voided_at", null);
 
   const recordedSet = new Set((myRecords ?? []).map((r) => `${r.event_day_id}:${r.type}`));
   const now = requestTime();
   const today = todayInAppTz();
 
-  const events = ((eventRows ?? []) as EventWithDays[]).map((e) => ({
+  const events = ((eventRows ?? []) as EventWithDays[])
+    .filter((e) => !profile || isEventForStudent(e, profile))
+    .map((e) => ({
     ...e,
     event_days: [...e.event_days].sort((a, b) => a.day_date.localeCompare(b.day_date)),
   }));

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { distanceMeters } from "@/lib/geofence";
+import { describeTargets, isEventForStudent, type EventTargets } from "@/lib/eligibility";
 import { signQrToken, QR_TOKEN_TTL_MS } from "@/lib/tokens";
 import { parseJsonBody } from "@/lib/validation";
 import type { EventDay, Venue } from "@/types/database";
@@ -48,12 +49,19 @@ export async function POST(request: Request) {
 
   const { data: eventDay } = await admin
     .from("event_days")
-    .select("*, events!inner(venue_id, venues!inner(*))")
+    .select("*, events!inner(venue_id, target_programs, target_year_levels, venues!inner(*))")
     .eq("id", eventDayId)
-    .single<EventDay & { events: { venue_id: string; venues: Venue } }>();
+    .single<EventDay & { events: EventTargets & { venue_id: string; venues: Venue } }>();
 
   if (!eventDay) {
     return NextResponse.json({ error: "Event day not found." }, { status: 404 });
+  }
+
+  if (!isEventForStudent(eventDay.events, profile)) {
+    return NextResponse.json(
+      { error: `This event is only for ${describeTargets(eventDay.events)}.` },
+      { status: 403 }
+    );
   }
 
   const venue = eventDay.events.venues;
@@ -87,6 +95,7 @@ export async function POST(request: Request) {
     .eq("event_day_id", eventDayId)
     .eq("student_id", profile.id)
     .eq("type", type)
+    .is("voided_at", null)
     .maybeSingle();
 
   if (existing) {

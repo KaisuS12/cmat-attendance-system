@@ -11,10 +11,17 @@ export interface StudentSummary {
   section: string | null;
 }
 
+export interface AttendanceEntry {
+  id: string;
+  at: string;
+  method: AttendanceMethod;
+  reason: string | null;
+}
+
 export interface DayAttendanceRow {
   student: StudentSummary;
-  signIn: { at: string; method: AttendanceMethod; reason: string | null } | null;
-  signOut: { at: string; method: AttendanceMethod; reason: string | null } | null;
+  signIn: AttendanceEntry | null;
+  signOut: AttendanceEntry | null;
 }
 
 interface RecordWithStudent {
@@ -43,6 +50,7 @@ export async function loadDayAttendance(
         "id, event_day_id, type, method, manual_reason, recorded_at, profiles!attendance_records_student_id_fkey(id, student_id, full_name, program, year_level, section)"
       )
       .in("event_day_id", dayIds)
+      .is("voided_at", null)
       .order("recorded_at")
       .order("id")
       .range(from, to)
@@ -59,7 +67,7 @@ export async function loadDayAttendance(
       if (!byDay.has(r.event_day_id)) byDay.set(r.event_day_id, []);
       byDay.get(r.event_day_id)!.push(row);
     }
-    const entry = { at: r.recorded_at, method: r.method, reason: r.manual_reason };
+    const entry = { id: r.id, at: r.recorded_at, method: r.method, reason: r.manual_reason };
     if (r.type === "sign_in") row.signIn = entry;
     else row.signOut = entry;
   }

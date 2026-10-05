@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
 import { daySchema } from "@/lib/schemas";
+import { cleanTargets } from "@/lib/eligibility";
 import { parseJsonBody } from "@/lib/validation";
 
 export async function GET() {
@@ -37,6 +38,8 @@ const bodySchema = z
     semesterId: z.uuid().optional(),
     venue: venueSchema,
     days: z.array(daySchema).min(1, "Add at least one day."),
+    targetPrograms: z.array(z.string()).max(50).optional(),
+    targetYearLevels: z.array(z.string()).max(20).optional(),
   })
   .refine((b) => new Set(b.days.map((d) => d.dayDate)).size === b.days.length, {
     path: ["days"],
@@ -50,6 +53,8 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request, bodySchema);
   if (body.error) return body.error;
   const { title, description, venue, days } = body.data;
+  const targetPrograms = cleanTargets(body.data.targetPrograms);
+  const targetYearLevels = cleanTargets(body.data.targetYearLevels);
 
   const admin = createAdminClient();
 
@@ -68,6 +73,8 @@ export async function POST(request: Request) {
     p_venue: venue,
     p_days: days,
     p_actor: profile.id,
+    p_target_programs: targetPrograms,
+    p_target_year_levels: targetYearLevels,
   });
 
   if (rpcError || !eventId) {
@@ -82,7 +89,7 @@ export async function POST(request: Request) {
     action: "event_created",
     entityType: "events",
     entityId: eventId as string,
-    details: { title, dayCount: days.length },
+    details: { title, dayCount: days.length, targetPrograms, targetYearLevels },
   });
 
   return NextResponse.json({ eventId }, { status: 201 });
