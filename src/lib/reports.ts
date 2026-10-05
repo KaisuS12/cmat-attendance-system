@@ -140,3 +140,55 @@ export function dayStats(rows: DayAttendanceRow[], eligible: StudentSummary[]) {
     completeRate: expected > 0 ? expectedComplete / expected : null,
   };
 }
+
+export interface EventSummary {
+  id: string;
+  title: string;
+  lastDay: string;
+  expected: number; // student-days expected across the event's finished days
+  signedIn: number; // of those, student-days with a sign-in
+}
+
+// Attendance rate per finished event in a semester (events with no semester
+// count toward the active one), most recent first.
+export async function loadSemesterSummary(
+  client: SupabaseClient,
+  semester: { id: string; is_active: boolean },
+  now: number
+): Promise<EventSummary[]> {
+  const { data } = await client
+    .from("events")
+    .select("id, title, target_programs, target_year_levels, event_days(id, day_date, sign_out_end)")
+    .or(semester.is_active ? `semester_id.eq.${semester.id},semester_id.is.null` : `semester_id.eq.${semester.id}`);
+  type Ev = EventTargets & {
+    id: string;
+    title: string;
+    event_days: { id: string; day_date: string; sign_out_end: string }[];
+  };
+  const events = ((data ?? []) as Ev[])
+    .map((e) => ({ ...e, event_days: e.event_days.filter((d) => new Date(d.sign_out_end).getTime() <= now) }))
+    .filter((e) => e.event_days.length > 0);
+  if (events.length === 0) return [];
+
+  const [byDay, everyone] = await Promise.all([
+    loadDayAttendance(client, events.flatMap((e) => e.event_days.map((d) => d.id))),
+    loadEligibleStudents(client, { target_programs: null, target_year_levels: null }),
+  ]);
+
+  return events
+    .map((e) => {
+      const eligibleIds = new Set(everyone.filter((s) => isEventForStudent(e, s)).map((s) => s.id));
+      let signedIn = 0;
+      for (const d of e.event_days) {
+        signedIn += (byDay.get(d.id) ?? []).filter((r) => r.signIn && eligibleIds.has(r.student.id)).length;
+      }
+      return {
+        id: e.id,
+        title: e.title,
+        lastDay: e.event_days.map((d) => d.day_date).sort().at(-1)!,
+        expected: eligibleIds.size * e.event_days.length,
+        signedIn,
+      };
+    })
+    .sort((a, b) => b.lastDay.localeCompare(a.lastDay));
+}

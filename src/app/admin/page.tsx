@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Alert, PageTitle } from "@/components/ui";
+import { formatDayDate, requestTime } from "@/lib/datetime";
+import { loadSemesterSummary } from "@/lib/reports";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +14,13 @@ export default async function AdminDashboard() {
       supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
       supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "officer"),
       supabase.from("events").select("*", { count: "exact", head: true }),
-      supabase.from("semesters").select("id, name").eq("is_active", true).maybeSingle(),
+      supabase.from("semesters").select("id, name, is_active").eq("is_active", true).maybeSingle(),
     ]);
+
+  const summary = activeSemester ? await loadSemesterSummary(supabase, activeSemester, requestTime()) : [];
+  const totalExpected = summary.reduce((n, e) => n + e.expected, 0);
+  const totalSignedIn = summary.reduce((n, e) => n + e.signedIn, 0);
+  const averageRate = totalExpected > 0 ? Math.round((totalSignedIn / totalExpected) * 100) : null;
 
   const stats = [
     { label: "Students", value: studentCount ?? 0, href: "/admin/students" },
@@ -55,6 +62,54 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      {activeSemester && (
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+          <h2 className="text-sm font-semibold text-slate-900">This semester</h2>
+          {summary.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">No finished events yet.</p>
+          ) : (
+            <>
+              <dl className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-xs text-slate-500">Events held</dt>
+                  <dd className="text-2xl font-semibold text-slate-900">{summary.length}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-500">Average attendance</dt>
+                  <dd className="text-2xl font-semibold text-slate-900">{averageRate === null ? "—" : `${averageRate}%`}</dd>
+                </div>
+              </dl>
+              <h3 className="mt-4 text-xs font-medium text-slate-500">Recent events (share of expected students who signed in)</h3>
+              <ul className="mt-2 space-y-2">
+                {summary.slice(0, 5).map((e) => {
+                  const pct = e.expected > 0 ? Math.round((e.signedIn / e.expected) * 100) : 0;
+                  return (
+                    <li key={e.id}>
+                      <Link href={`/officer/events/${e.id}`} className="block rounded-lg px-1 py-1 hover:bg-slate-50">
+                        <div className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="min-w-0 truncate font-medium text-slate-800">{e.title}</span>
+                          <span className="shrink-0 text-slate-600">
+                            {formatDayDate(e.lastDay, "numeric")} · <span className="font-semibold text-slate-900">{pct}%</span>
+                          </span>
+                        </div>
+                        <div
+                          className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100"
+                          role="img"
+                          aria-label={`${pct}% of expected students signed in`}
+                          title={`${e.signedIn} of ${e.expected} expected sign-ins`}
+                        >
+                          <div className="h-full rounded-full bg-slate-800" style={{ width: `${pct}%` }} />
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         {links.map((l) => (
