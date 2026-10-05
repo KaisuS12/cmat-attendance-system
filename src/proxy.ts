@@ -9,13 +9,6 @@ const ROLE_HOME: Record<string, string> = {
 
 const PASSWORD_PAGE = "/account/password";
 
-// Which role sections each role may open. Admins also run events, so they
-// get the officer section too.
-const ALLOWED_SECTIONS: Record<string, string[]> = {
-  admin: ["admin", "officer"],
-  officer: ["officer"],
-  student: ["student"],
-};
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -60,20 +53,21 @@ export async function proxy(request: NextRequest) {
     return redirectTo("/login");
   }
 
-  // API routes check roles themselves (requireRole); skip the profile lookup.
-  if (isApi) return response;
+  // Everything below needs the profile, which costs a database round trip.
+  // Only the entry points ("/" and "/login") need it here, to send the user
+  // to their role's home. Section access, deactivation and the forced
+  // password change are enforced by the section layouts (RoleLayout), which
+  // load the profile anyway; API routes enforce roles with requireRole.
+  if (path !== "/" && path !== "/login") return response;
 
   // select("*") rather than naming the newer columns, so a database that
-  // hasn't had migration 0002 applied yet still gets role protection instead
-  // of a failed query that would let everyone through.
+  // hasn't had migration 0002 applied yet doesn't fail the query.
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", userId).single();
-
   const role = profile?.role as string | undefined;
 
   // Authenticated but no matching profiles row (or an unrecognized role) —
   // e.g. an Auth user created in the dashboard without a profile. Sign them
-  // out so they can't open any section; signing out (rather than just
-  // redirecting) is what keeps this from looping back here.
+  // out; signing out (rather than just redirecting) prevents a redirect loop.
   if (!role || !ROLE_HOME[role]) {
     await supabase.auth.signOut();
     return redirectTo("/login?noprofile=1");
@@ -84,23 +78,9 @@ export async function proxy(request: NextRequest) {
     return redirectTo("/login?deactivated=1");
   }
 
-  if (profile?.must_change_password === true && path !== PASSWORD_PAGE) {
-    return redirectTo(PASSWORD_PAGE);
-  }
-
-  if (path === "/login" || path === "/") {
-    return redirectTo(ROLE_HOME[role]);
-  }
-
-  // keep each role inside its own section (e.g. a student can't open /admin)
-  const section = path.split("/")[1];
-  if (["admin", "officer", "student"].includes(section) && !ALLOWED_SECTIONS[role].includes(section)) {
-    return redirectTo(ROLE_HOME[role]);
-  }
-
-  return response;
+  return redirectTo(profile?.must_change_password === true ? PASSWORD_PAGE : ROLE_HOME[role]);
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

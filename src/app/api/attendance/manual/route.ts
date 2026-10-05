@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -66,13 +66,16 @@ export async function POST(request: Request) {
     );
   }
 
-  await logAudit({
-    actorId: profile.id,
-    action: "attendance_manual_entry",
-    entityType: "attendance_records",
-    entityId: record.id,
-    details: { studentId: studentProfileId, studentName: student.full_name, eventDayId, type, reason },
-  });
+  // Audit write happens after the response so the officer isn't kept waiting.
+  after(() =>
+    logAudit({
+      actorId: profile.id,
+      action: "attendance_manual_entry",
+      entityType: "attendance_records",
+      entityId: record.id,
+      details: { studentId: studentProfileId, studentName: student.full_name, eventDayId, type, reason },
+    })
+  );
 
   return NextResponse.json({
     student: {

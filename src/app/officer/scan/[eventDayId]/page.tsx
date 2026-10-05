@@ -10,14 +10,6 @@ export default async function ScannerPage({ params }: PageProps<"/officer/scan/[
   const { eventDayId } = await params;
   const supabase = await createClient();
 
-  const { data: day } = await supabase
-    .from("event_days")
-    .select("*, events(id, title, venues(name))")
-    .eq("id", eventDayId)
-    .single<EventDay & { events: { id: string; title: string; venues: { name: string } } }>();
-
-  if (!day) notFound();
-
   const countFor = (type: "sign_in" | "sign_out") =>
     supabase
       .from("attendance_records")
@@ -25,7 +17,19 @@ export default async function ScannerPage({ params }: PageProps<"/officer/scan/[
       .eq("event_day_id", eventDayId)
       .eq("type", type)
       .is("voided_at", null);
-  const [{ count: signIns }, { count: signOuts }] = await Promise.all([countFor("sign_in"), countFor("sign_out")]);
+
+  // The day lookup and both counts are independent; run them together.
+  const [{ data: day }, { count: signIns }, { count: signOuts }] = await Promise.all([
+    supabase
+      .from("event_days")
+      .select("*, events(id, title, venues(name))")
+      .eq("id", eventDayId)
+      .single<EventDay & { events: { id: string; title: string; venues: { name: string } } }>(),
+    countFor("sign_in"),
+    countFor("sign_out"),
+  ]);
+
+  if (!day) notFound();
 
   return (
     <Scanner

@@ -23,33 +23,29 @@ export default async function StudentDashboard() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const { data: activeSemester } = await supabase
-    .from("semesters")
-    .select("id, name")
-    .eq("is_active", true)
-    .maybeSingle();
-
-  let eventsQuery = supabase
-    .from("events")
-    .select("*, venues(*), event_days(*)")
-    .order("created_at", { ascending: false });
-  if (activeSemester) {
-    // Events created before semesters were set up have no semester; keep them visible.
-    eventsQuery = eventsQuery.or(`semester_id.eq.${activeSemester.id},semester_id.is.null`);
-  }
-  const { data: eventRows } = await eventsQuery;
-
-  const { data: myRecords } = await supabase
-    .from("attendance_records")
-    .select("event_day_id, type")
-    .eq("student_id", profile?.id ?? "")
-    .is("voided_at", null);
+  // Independent queries run in parallel; the semester filter is applied
+  // below in code so the events query doesn't wait for the semester one.
+  const [{ data: activeSemester }, { data: eventRows }, { data: myRecords }] = await Promise.all([
+    supabase.from("semesters").select("id, name").eq("is_active", true).maybeSingle(),
+    supabase
+      .from("events")
+      .select("*, venues(*), event_days(*)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("attendance_records")
+      .select("event_day_id, type")
+      .eq("student_id", profile?.id ?? "")
+      .is("voided_at", null),
+  ]);
 
   const recordedSet = new Set((myRecords ?? []).map((r) => `${r.event_day_id}:${r.type}`));
   const now = requestTime();
   const today = todayInAppTz();
 
   const events = ((eventRows ?? []) as EventWithDays[])
+    // Current semester only (events created before semesters existed have
+    // none and stay visible); with no active semester, show everything.
+    .filter((e) => !activeSemester || !e.semester_id || e.semester_id === activeSemester.id)
     .filter((e) => !profile || isEventForStudent(e, profile))
     .map((e) => ({
     ...e,

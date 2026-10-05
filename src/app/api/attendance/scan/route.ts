@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import * as jose from "jose";
 import { requireRole } from "@/lib/session";
@@ -80,13 +80,16 @@ export async function POST(request: Request) {
     .eq("id", payload.studentId)
     .single();
 
-  await logAudit({
-    actorId: profile.id,
-    action: "attendance_scanned",
-    entityType: "attendance_records",
-    entityId: record.id,
-    details: { studentId: payload.studentId, type: payload.type },
-  });
+  // Audit write happens after the response so the officer sees the name sooner.
+  after(() =>
+    logAudit({
+      actorId: profile.id,
+      action: "attendance_scanned",
+      entityType: "attendance_records",
+      entityId: record.id,
+      details: { studentId: payload.studentId, type: payload.type },
+    })
+  );
 
   return NextResponse.json({
     student,

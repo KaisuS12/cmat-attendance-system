@@ -1,11 +1,38 @@
+import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { AppHeader, HAS_BOTTOM_NAV, NAV } from "@/components/AppHeader";
 import { BottomNav } from "@/components/AppNav";
+import type { UserRole } from "@/types/database";
 
-// Shared shell for every signed-in section (admin, officer, student, account).
-export async function RoleLayout({ children }: { children: React.ReactNode }) {
+export type Section = "admin" | "officer" | "student" | "account";
+
+const ROLE_HOME: Record<UserRole, string> = {
+  admin: "/admin",
+  officer: "/officer",
+  student: "/student",
+};
+
+// Which sections each role may open. Admins also run events, so they get
+// the officer section too; everyone has their account page.
+const ALLOWED: Record<UserRole, Section[]> = {
+  admin: ["admin", "officer", "account"],
+  officer: ["officer", "account"],
+  student: ["student", "account"],
+};
+
+// Shared shell for every signed-in section. It also guards the section:
+// the profile is needed here for the header anyway, so checking access here
+// (instead of in the proxy) saves a database round trip on every page.
+// Data is still protected by RLS and requireRole() regardless.
+export async function RoleLayout({ section, children }: { section: Section; children: React.ReactNode }) {
   const profile = await getCurrentProfile();
-  const bottomNav = profile ? HAS_BOTTOM_NAV[profile.role] : false;
+
+  if (!profile) redirect("/api/auth/sign-out?reason=noprofile");
+  if (profile.is_active === false) redirect("/api/auth/sign-out?reason=deactivated");
+  if (profile.must_change_password === true && section !== "account") redirect("/account/password");
+  if (!ALLOWED[profile.role]?.includes(section)) redirect(ROLE_HOME[profile.role] ?? "/login");
+
+  const bottomNav = HAS_BOTTOM_NAV[profile.role];
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-slate-50">
@@ -17,7 +44,7 @@ export async function RoleLayout({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
-      {profile && bottomNav && <BottomNav items={NAV[profile.role]} />}
+      {bottomNav && <BottomNav items={NAV[profile.role]} />}
     </div>
   );
 }

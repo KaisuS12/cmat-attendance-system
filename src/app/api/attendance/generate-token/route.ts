@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,23 +35,35 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const now = new Date();
 
-  const { count: recentTokens } = await admin
-    .from("qr_tokens")
-    .select("id", { count: "exact", head: true })
-    .eq("student_id", profile.id)
-    .gte("created_at", new Date(now.getTime() - 60_000).toISOString());
+  // These three lookups don't depend on each other — run them together so a
+  // sign-in costs one database round trip instead of three.
+  const [{ count: recentTokens }, { data: eventDay }, { data: existing }] = await Promise.all([
+    admin
+      .from("qr_tokens")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", profile.id)
+      .gte("created_at", new Date(now.getTime() - 60_000).toISOString()),
+    admin
+      .from("event_days")
+      .select("*, events!inner(venue_id, target_programs, target_year_levels, venues!inner(*))")
+      .eq("id", eventDayId)
+      .single<EventDay & { events: EventTargets & { venue_id: string; venues: Venue } }>(),
+    admin
+      .from("attendance_records")
+      .select("id")
+      .eq("event_day_id", eventDayId)
+      .eq("student_id", profile.id)
+      .eq("type", type)
+      .is("voided_at", null)
+      .maybeSingle(),
+  ]);
+
   if ((recentTokens ?? 0) >= MAX_TOKENS_PER_MINUTE) {
     return NextResponse.json(
       { error: "Too many codes generated. Wait a moment and try again." },
       { status: 429 }
     );
   }
-
-  const { data: eventDay } = await admin
-    .from("event_days")
-    .select("*, events!inner(venue_id, target_programs, target_year_levels, venues!inner(*))")
-    .eq("id", eventDayId)
-    .single<EventDay & { events: EventTargets & { venue_id: string; venues: Venue } }>();
 
   if (!eventDay) {
     return NextResponse.json({ error: "Event day not found." }, { status: 404 });
@@ -89,15 +101,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: existing } = await admin
-    .from("attendance_records")
-    .select("id")
-    .eq("event_day_id", eventDayId)
-    .eq("student_id", profile.id)
-    .eq("type", type)
-    .is("voided_at", null)
-    .maybeSingle();
-
   if (existing) {
     return NextResponse.json(
       { error: `You have already ${type === "sign_in" ? "signed in" : "signed out"} for this day.` },
@@ -106,13 +109,16 @@ export async function POST(request: Request) {
   }
 
   // Housekeeping: drop this student's own expired, never-scanned codes so
-  // qr_tokens doesn't grow forever. Bounded and cheap; no cron needed.
-  await admin
-    .from("qr_tokens")
-    .delete()
-    .eq("student_id", profile.id)
-    .is("used_at", null)
-    .lt("expires_at", new Date(now.getTime() - 10 * 60_000).toISOString());
+  // qr_tokens doesn't grow forever. Runs after the response is sent, so it
+  // never slows the student down.
+  after(async () => {
+    await admin
+      .from("qr_tokens")
+      .delete()
+      .eq("student_id", profile.id)
+      .is("used_at", null)
+      .lt("expires_at", new Date(now.getTime() - 10 * 60_000).toISOString());
+  });
 
   const expiresAt = new Date(now.getTime() + QR_TOKEN_TTL_MS);
 
