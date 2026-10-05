@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Profile } from "@/types/database";
 import { AppNav, type NavItem } from "@/components/AppNav";
 import { SignOutButton } from "@/components/SignOutButton";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 export const NAV: Record<Profile["role"], NavItem[]> = {
   admin: [
@@ -54,7 +55,10 @@ export function AppHeader({ profile }: { profile: Profile | null }) {
             className="h-10 w-10 object-contain"
             priority
           />
-          <span className="text-sm font-bold tracking-tight text-brand-800">CMAT Attendance</span>
+          <span className="text-sm font-bold tracking-tight text-brand-800">
+            {APP_NAME}
+            <span className="font-semibold text-slate-600">: {APP_TAGLINE}</span>
+          </span>
         </Link>
         <div className="flex items-center gap-4">
           {profile && (

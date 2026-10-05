@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
+import { APP_FULL_NAME, APP_NAME } from "@/lib/brand";
 
 // Lets students "Add to Home Screen" so the attendance app opens like a
 // native app at events.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CMAT Council Attendance",
-    short_name: "CMAT Attendance",
+    name: APP_FULL_NAME,
+    short_name: APP_NAME,
     description: "QR-based attendance for CMAT council events",
     start_url: "/",
     display: "standalone",

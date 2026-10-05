@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { groupSlips, type SlipCredential } from "@/lib/slips";
 import { btnSecondary } from "@/components/ui";
+import { APP_FULL_NAME } from "@/lib/brand";
 
 // Printable cut-out cards with each student's login details, grouped and
 // page-broken by section. The sheet is rendered into <body> only while
@@ -63,7 +64,7 @@ function SlipSheet({ credentials }: { credentials: SlipCredential[] }) {
                 <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                   {/* eslint-disable-next-line @next/next/no-img-element -- plain img so it's already loaded when printing */}
                   <img src="/brand/cmat-logo.png" alt="" className="h-6 w-6 object-contain" />
-                  CMAT Council Attendance
+                  {APP_FULL_NAME}
                 </p>
                 <p className="mt-1 text-sm font-semibold">{s.fullName}</p>
                 <p className="mt-1">

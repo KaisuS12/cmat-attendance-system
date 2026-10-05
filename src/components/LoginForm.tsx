@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { studentIdToEmail } from "@/lib/constants";
 import { Alert, btnPrimary, inputClass, labelClass } from "@/components/ui";
+import { APP_FULL_NAME } from "@/lib/brand";
 
 export function LoginForm({ notice }: { notice: string | null }) {
   const [tab, setTab] = useState<"student" | "staff">("student");
@@ -62,7 +63,7 @@ export function LoginForm({ notice }: { notice: string | null }) {
             className="h-32 w-32 object-contain drop-shadow-sm sm:h-40 sm:w-40"
             priority
           />
-          <h1 className="mt-4 text-xl font-bold tracking-tight text-brand-800">CMAT Council Attendance</h1>
+          <h1 className="mt-4 text-xl font-bold tracking-tight text-brand-800">{APP_FULL_NAME}</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to continue.</p>
         </div>
 

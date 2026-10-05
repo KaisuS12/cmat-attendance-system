@@ -6,6 +6,7 @@ import { SemesterSelect } from "@/components/SemesterSelect";
 import { PrintButton } from "@/components/PrintButton";
 import { isEventForStudent, type EventTargets } from "@/lib/eligibility";
 import type { AttendanceRecord, EventDay, Profile, Semester } from "@/types/database";
+import { APP_FULL_NAME } from "@/lib/brand";
 
 type EventWithDays = EventTargets & { id: string; title: string; event_days: EventDay[] };
 
@@ -107,7 +108,7 @@ export async function AttendanceRecordView({
           <Image src="/brand/cmat-logo.png" alt="" width={64} height={65} className="h-16 w-16 shrink-0 object-contain" />
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              CMAT Council · Attendance record
+              {APP_FULL_NAME} · Attendance record
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-900">{student.full_name}</h2>
             <p className="text-sm text-slate-600">
@@ -193,7 +194,7 @@ export async function AttendanceRecordView({
 
         <p className="mt-6 hidden text-xs text-slate-400 print:block">
           Generated {new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila", dateStyle: "long" })} ·
-          CMAT Council QR Attendance System
+          {APP_FULL_NAME}
         </p>
       </div>
     </div>

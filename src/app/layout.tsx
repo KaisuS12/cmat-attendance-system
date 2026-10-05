@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { APP_FULL_NAME, APP_NAME } from "@/lib/brand";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "CMAT Council Attendance", template: "%s · CMAT Attendance" },
+  title: { default: APP_FULL_NAME, template: `%s · ${APP_NAME}` },
   description: "QR-based attendance tracking for the CMAT departmental student council",
-  appleWebApp: { capable: true, title: "CMAT Attendance", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
