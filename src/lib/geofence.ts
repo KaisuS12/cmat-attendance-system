@@ -28,3 +28,25 @@ export function isWithinVenue(
 ): boolean {
   return distanceMeters(studentLat, studentLon, venueLat, venueLon) <= radiusMeters;
 }
+
+const FOOTBALL_FIELD_METERS = 100;
+const WALK_METERS_PER_MINUTE = 80;
+
+function halves(n: number): string {
+  const rounded = Math.round(n * 2) / 2;
+  const whole = Math.floor(rounded);
+  const half = rounded - whole === 0.5;
+  if (whole === 0) return half ? "½" : "0";
+  return half ? `${whole}½` : String(whole);
+}
+
+// Plain-language sense of a radius, e.g. for 150:
+// "about 1½ football fields · about a 2-minute walk from the center".
+export function describeDistance(meters: number): string {
+  if (!Number.isFinite(meters) || meters <= 0) return "";
+  const fields = meters / FOOTBALL_FIELD_METERS;
+  const fieldText =
+    fields < 0.75 ? "less than a football field" : `about ${halves(fields)} football field${halves(fields) === "1" ? "" : "s"}`;
+  const minutes = Math.max(1, Math.round(meters / WALK_METERS_PER_MINUTE));
+  return `${fieldText} · about a ${minutes}-minute walk from the center`;
+}

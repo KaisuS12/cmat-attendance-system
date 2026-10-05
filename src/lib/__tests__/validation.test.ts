@@ -66,3 +66,14 @@ describe("temporary passwords", () => {
     expect(generateTempPassword()).not.toBe(a);
   });
 });
+
+describe("describeDistance", () => {
+  it("compares radii to football fields and walking time", async () => {
+    const { describeDistance } = await import("@/lib/geofence");
+    expect(describeDistance(150)).toBe("about 1½ football fields · about a 2-minute walk from the center");
+    expect(describeDistance(100)).toBe("about 1 football field · about a 1-minute walk from the center");
+    expect(describeDistance(50)).toBe("less than a football field · about a 1-minute walk from the center");
+    expect(describeDistance(300)).toBe("about 3 football fields · about a 4-minute walk from the center");
+    expect(describeDistance(0)).toBe("");
+  });
+});

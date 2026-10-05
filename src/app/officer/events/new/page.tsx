@@ -3,10 +3,24 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { DayWindowFields, dayToPayload, emptyDay, withDate, type DayInput } from "@/components/DayWindowFields";
 import { TargetPicker, type Targets } from "@/components/TargetPicker";
 import { Alert, btnPrimary, btnSecondary, inputClass, labelClass, PageTitle } from "@/components/ui";
+import { describeDistance } from "@/lib/geofence";
 import type { Venue } from "@/types/database";
+
+// Leaflet needs the browser (window), so the map is loaded client-side only.
+const VenueMap = dynamic(() => import("@/components/VenueMap"), {
+  ssr: false,
+  loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-slate-100 sm:h-80" aria-hidden="true" />,
+});
+
+function parseCoord(value: string): number | null {
+  if (value.trim() === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
 
 const NEW_VENUE = "__new__";
 
@@ -191,10 +205,17 @@ export default function NewEventPage() {
           )}
 
           {selectedVenue && (
-            <p className="text-xs text-slate-500">
-              Students must be within {selectedVenue.radius_meters} m of {selectedVenue.latitude.toFixed(5)},{" "}
-              {selectedVenue.longitude.toFixed(5)}.
-            </p>
+            <>
+              <VenueMap
+                latitude={selectedVenue.latitude}
+                longitude={selectedVenue.longitude}
+                radiusMeters={selectedVenue.radius_meters}
+              />
+              <p className="text-xs text-slate-500">
+                Students can sign in anywhere inside the gold circle: within {selectedVenue.radius_meters} m (
+                {describeDistance(selectedVenue.radius_meters)}).
+              </p>
+            </>
           )}
 
           {venueChoice === NEW_VENUE && (
@@ -224,28 +245,60 @@ export default function NewEventPage() {
                   className={inputClass}
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-slate-600">
-                  Radius
-                  <input
-                    required
-                    type="number"
-                    min={20}
-                    max={2000}
-                    value={radiusMeters}
-                    onChange={(e) => setRadiusMeters(e.target.value)}
-                    className={`${inputClass} w-24`}
-                  />
-                  m
-                </label>
-                <button type="button" onClick={fillCurrentLocation} disabled={locating} className={btnSecondary}>
-                  {locating ? "Locating..." : "📍 Use my current location"}
-                </button>
-              </div>
+              <button type="button" onClick={fillCurrentLocation} disabled={locating} className={btnSecondary}>
+                {locating ? "Locating..." : "📍 Use my current location"}
+              </button>
+
+              <VenueMap
+                editable
+                latitude={parseCoord(latitude)}
+                longitude={parseCoord(longitude)}
+                radiusMeters={Number(radiusMeters) || 0}
+                onChange={(pos) => {
+                  setLatitude(String(pos.latitude));
+                  setLongitude(String(pos.longitude));
+                }}
+              />
               <p className="text-xs text-slate-500">
-                Stand at the center of the venue and use your location. GPS drifts indoors, so keep the radius
-                generous (150 m or more for gyms and covered courts).
+                Tap the map or drag the pin to the middle of the venue. Switch to <strong>Satellite</strong> (top
+                right) to see the buildings.
               </p>
+
+              <div className="rounded-lg bg-gold-100/60 p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label htmlFor="radius-slider" className="text-sm font-medium text-slate-700">
+                    Sign-in radius
+                  </label>
+                  <input
+                    id="radius-slider"
+                    type="range"
+                    min={20}
+                    max={1000}
+                    step={10}
+                    value={Math.min(1000, Math.max(20, Number(radiusMeters) || 20))}
+                    onChange={(e) => setRadiusMeters(e.target.value)}
+                    className="min-w-40 flex-1 accent-brand-700"
+                    aria-describedby="radius-hint"
+                  />
+                  <label className="flex items-center gap-1.5 text-sm text-slate-600">
+                    <input
+                      required
+                      type="number"
+                      min={20}
+                      max={2000}
+                      value={radiusMeters}
+                      onChange={(e) => setRadiusMeters(e.target.value)}
+                      className={`${inputClass} w-24`}
+                      aria-label="Radius in meters"
+                    />
+                    m
+                  </label>
+                </div>
+                <p id="radius-hint" className="mt-1.5 text-xs text-slate-600">
+                  {describeDistance(Number(radiusMeters))}. GPS drifts indoors, so keep it generous (150 m or more
+                  for gyms and covered courts).
+                </p>
+              </div>
             </div>
           )}
         </fieldset>
