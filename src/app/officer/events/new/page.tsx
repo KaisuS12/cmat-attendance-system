@@ -139,7 +139,7 @@ export default function NewEventPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-        <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="space-y-4 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
           <div>
             <label htmlFor="title" className={labelClass}>
               Title
@@ -167,12 +167,12 @@ export default function NewEventPage() {
           </div>
         </div>
 
-        <fieldset className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <fieldset className="space-y-3 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
           <legend className="px-1 text-sm font-semibold text-slate-900">Who should attend</legend>
           <TargetPicker value={targets} onChange={setTargets} />
         </fieldset>
 
-        <fieldset className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <fieldset className="space-y-3 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
           <legend className="px-1 text-sm font-semibold text-slate-900">Venue</legend>
           {venues.length > 0 && (
             <select
@@ -250,7 +250,7 @@ export default function NewEventPage() {
           )}
         </fieldset>
 
-        <fieldset className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <fieldset className="space-y-4 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
           <legend className="px-1 text-sm font-semibold text-slate-900">Days</legend>
           {days.map((day, i) => (
             <div key={i} className="rounded-lg bg-slate-50 p-3">

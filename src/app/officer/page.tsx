@@ -48,7 +48,7 @@ export default async function OfficerDashboard() {
       <Link
         key={event.id}
         href={`/officer/events/${event.id}`}
-        className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-400 sm:p-5"
+        className="block rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-4 transition hover:border-gold-400 sm:p-5"
       >
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold text-slate-900">{event.title}</h3>

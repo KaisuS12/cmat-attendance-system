@@ -167,7 +167,7 @@ export function DayAttendanceTable({
                 </ul>
                 <div className="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+                    <thead className="bg-gold-100 text-left text-xs uppercase tracking-wide text-gold-600">
                       <tr>
                         <th className="px-3 py-2">Name</th>
                         <th className="px-3 py-2">ID</th>

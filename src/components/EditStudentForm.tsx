@@ -64,8 +64,8 @@ export function EditStudentForm({ student }: { student: Profile }) {
   );
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-900">Edit student</h2>
+    <form onSubmit={handleSubmit} className="w-full space-y-3 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4">
+      <h2 className="text-sm font-semibold text-brand-800">Edit student</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {field("Full name", fullName, setFullName, true)}
         {field("Student ID", studentId, setStudentId, true)}

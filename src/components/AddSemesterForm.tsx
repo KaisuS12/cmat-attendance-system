@@ -40,8 +40,8 @@ export function AddSemesterForm({ isFirst }: { isFirst: boolean }) {
   }
 
   return (
-    <form onSubmit={handleCreate} className="mt-6 space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h2 className="text-sm font-semibold text-slate-900">{isFirst ? "Create the first semester" : "Add semester"}</h2>
+    <form onSubmit={handleCreate} className="mt-6 space-y-3 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
+      <h2 className="text-sm font-semibold text-brand-800">{isFirst ? "Create the first semester" : "Add semester"}</h2>
       <input
         required
         placeholder="e.g. AY 2026-2027, 1st Semester"

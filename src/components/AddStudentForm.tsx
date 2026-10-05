@@ -80,9 +80,9 @@ export function AddStudentForm() {
   }
 
   return (
-    <div className="w-full rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+    <div className="w-full rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
       <form onSubmit={handleSubmit} className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Add a student</h2>
+        <h2 className="text-sm font-semibold text-brand-800">Add a student</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-medium text-slate-500">
             Student ID

@@ -10,7 +10,7 @@ export const btnDanger =
 export const inputClass =
   "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-gold-300";
 export const labelClass = "block text-sm font-medium text-slate-700";
-export const cardClass = "rounded-xl border border-slate-200 bg-white p-5";
+export const cardClass = "rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-5";
 
 export function PageTitle({
   title,
@@ -25,6 +25,7 @@ export function PageTitle({
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <h1 className="text-xl font-semibold text-brand-800">{title}</h1>
+        <div className="mt-1.5 h-1 w-10 rounded-full bg-gold-400" aria-hidden="true" />
         {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2 print:hidden">{actions}</div>}

@@ -98,7 +98,7 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
             {entries.map((entry) => {
               const actor = entry.profiles as unknown as { full_name: string; role: string } | null;
               return (
-                <li key={entry.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                <li key={entry.id} className="rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-3 text-sm">
                   <p className="font-medium text-slate-800">{ACTION_LABELS[entry.action] ?? entry.action}</p>
                   <p className="text-xs text-slate-500">
                     {actor?.full_name} ({actor?.role}) · {formatDateTime(entry.created_at)}
@@ -112,7 +112,7 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
           </ul>
           <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white sm:block">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+              <thead className="bg-gold-100 text-left text-xs uppercase tracking-wide text-gold-600">
                 <tr>
                   <th className="px-4 py-2">When</th>
                   <th className="px-4 py-2">Who</th>

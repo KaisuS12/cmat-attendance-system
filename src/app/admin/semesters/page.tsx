@@ -28,7 +28,7 @@ export default async function SemestersPage() {
           semesters.map((s) => (
             <div
               key={s.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-4"
             >
               <div>
                 <p className="font-medium text-slate-900">

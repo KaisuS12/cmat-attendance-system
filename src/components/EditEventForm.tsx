@@ -77,8 +77,8 @@ export function EditEventForm({ event }: { event: EventRecord }) {
   const venueOptions = venues;
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 w-full space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h2 className="text-sm font-semibold text-slate-900">Edit event</h2>
+    <form onSubmit={handleSubmit} className="mt-4 w-full space-y-4 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
+      <h2 className="text-sm font-semibold text-brand-800">Edit event</h2>
       <div>
         <label htmlFor="edit-title" className={labelClass}>
           Title

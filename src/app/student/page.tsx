@@ -79,7 +79,7 @@ export default async function StudentDashboard() {
 
   function renderEvent(event: EventWithDays, interactive: boolean) {
     return (
-      <div key={event.id} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+      <div key={event.id} className="rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-4 sm:p-5">
         <h3 className="font-semibold text-slate-900">{event.title}</h3>
         <p className="text-sm text-slate-500">{event.venues.name}</p>
         {event.description && <p className="mt-1 text-sm text-slate-600">{event.description}</p>}

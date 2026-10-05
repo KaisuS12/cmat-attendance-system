@@ -52,8 +52,8 @@ export function AddDayForm({ eventId }: { eventId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h2 className="font-semibold text-slate-900">Add a day</h2>
+    <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
+      <h2 className="font-semibold text-brand-800">Add a day</h2>
       <DayWindowFields value={day} onChange={setDay} />
       {error && <Alert kind="error">{error}</Alert>}
       <div className="flex gap-2">

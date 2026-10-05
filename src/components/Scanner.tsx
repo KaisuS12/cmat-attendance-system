@@ -466,7 +466,7 @@ function ManualEntry({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+    <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4">
       <p className="text-xs text-slate-500">
         For a student who is here but can&apos;t show a QR (dead phone, no GPS or signal). Every manual entry is
         flagged and logged with your name.

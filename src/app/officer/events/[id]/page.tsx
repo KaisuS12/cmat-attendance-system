@@ -95,7 +95,7 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
           const live = signIn === "open" || signOut === "open";
 
           return (
-            <section key={day.id} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+            <section key={day.id} className="rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <h2 className="font-semibold text-slate-900">{formatDayDate(day.day_date, "long")}</h2>

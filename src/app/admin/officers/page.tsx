@@ -24,7 +24,7 @@ export default async function OfficersPage() {
           officers.map((o) => (
             <div
               key={o.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4"
+              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-4"
             >
               <div className="min-w-0">
                 <p className="font-medium text-slate-900">

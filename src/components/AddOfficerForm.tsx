@@ -41,8 +41,8 @@ export function AddOfficerForm() {
   }
 
   return (
-    <form onSubmit={handleCreate} className="mt-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h2 className="text-sm font-semibold text-slate-900">Add officer</h2>
+    <form onSubmit={handleCreate} className="mt-6 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
+      <h2 className="text-sm font-semibold text-brand-800">Add officer</h2>
       <div className="mt-3 flex flex-col gap-3 sm:flex-row">
         <input
           required
