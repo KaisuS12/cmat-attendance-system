@@ -52,7 +52,7 @@ export default async function OfficerDashboard() {
       >
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold text-slate-900">{event.title}</h3>
-          {live ? <Badge tone="green">Live</Badge> : isToday ? <Badge tone="blue">Today</Badge> : null}
+          {live ? <Badge tone="green">Live</Badge> : isToday ? <Badge tone="gold">Today</Badge> : null}
         </div>
         <p className="mt-0.5 text-sm text-slate-500">
           {event.venues.name} · {dateRange(event.event_days)}

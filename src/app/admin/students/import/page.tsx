@@ -202,7 +202,7 @@ export default function ImportStudentsPage() {
               accept=".csv,text/csv"
               disabled={running}
               onChange={(e) => handleFile(e.target.files?.[0])}
-              className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+              className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-brand-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
             />
           </label>
 
@@ -291,7 +291,7 @@ export default function ImportStudentsPage() {
                 <div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full bg-slate-900 transition-all"
+                      className="h-full bg-brand-600 transition-all"
                       style={{ width: `${rows.length ? (done / rows.length) * 100 : 0}%` }}
                     />
                   </div>

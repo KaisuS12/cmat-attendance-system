@@ -51,7 +51,7 @@ export function LoginForm({ notice }: { notice: string | null }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-white via-brand-50/60 to-gold-100/70 px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <Image
@@ -62,12 +62,14 @@ export function LoginForm({ notice }: { notice: string | null }) {
             className="h-32 w-32 object-contain drop-shadow-sm sm:h-40 sm:w-40"
             priority
           />
-          <h1 className="mt-4 text-xl font-semibold text-slate-900">CMAT Council Attendance</h1>
+          <h1 className="mt-4 text-xl font-bold tracking-tight text-brand-800">CMAT Council Attendance</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to continue.</p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex rounded-lg bg-slate-100 p-1 text-sm" role="tablist">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="h-1 bg-gradient-to-r from-gold-500 via-gold-400 to-gold-300" aria-hidden="true" />
+          <div className="p-6 sm:p-8">
+          <div className="flex rounded-lg bg-brand-50 p-1 text-sm" role="tablist">
             {(["student", "staff"] as const).map((t) => (
               <button
                 key={t}
@@ -79,7 +81,7 @@ export function LoginForm({ notice }: { notice: string | null }) {
                   setError(null);
                 }}
                 className={`flex-1 rounded-md py-1.5 font-medium transition ${
-                  tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                  tab === t ? "bg-white font-semibold text-brand-800 shadow-sm ring-1 ring-gold-400" : "text-slate-500"
                 }`}
               >
                 {t === "student" ? "Student" : "Officer / Admin"}
@@ -147,6 +149,7 @@ export function LoginForm({ notice }: { notice: string | null }) {
           <p className="mt-5 text-center text-xs text-slate-400">
             Forgot your password? Ask a council officer or admin to reset it.
           </p>
+          </div>
         </div>
       </div>
     </div>

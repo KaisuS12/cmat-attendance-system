@@ -94,12 +94,12 @@ export default async function AdminDashboard() {
                           </span>
                         </div>
                         <div
-                          className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100"
+                          className="mt-1 h-2 overflow-hidden rounded-full bg-brand-50"
                           role="img"
                           aria-label={`${pct}% of expected students signed in`}
                           title={`${e.signedIn} of ${e.expected} expected sign-ins`}
                         >
-                          <div className="h-full rounded-full bg-slate-800" style={{ width: `${pct}%` }} />
+                          <div className="h-full rounded-full bg-brand-600" style={{ width: `${pct}%` }} />
                         </div>
                       </Link>
                     </li>

@@ -18,7 +18,7 @@ export default function Error({ error, retry }: { error: Error & { digest?: stri
         <div className="mt-5 flex justify-center gap-2">
           <button
             onClick={() => retry()}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
           >
             Try again
           </button>

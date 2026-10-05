@@ -96,7 +96,7 @@ export default async function StudentDashboard() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-slate-800">
                     {formatDayDate(day.day_date)}
-                    {day.day_date === today && <span className="ml-2"><Badge tone="blue">Today</Badge></span>}
+                    {day.day_date === today && <span className="ml-2"><Badge tone="gold">Today</Badge></span>}
                   </p>
                   <p className="text-xs text-slate-500">
                     In {formatTime(day.sign_in_start)}–{formatTime(day.sign_in_end)} · Out{" "}
@@ -153,19 +153,21 @@ export default async function StudentDashboard() {
       />
 
       {nextAction && (
-        <section className="mt-5 rounded-2xl bg-slate-900 p-5 text-white shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-            {nextAction.type === "sign_in" ? "Sign-in is open" : "Sign-out is open"}
+        <section className="mt-5 overflow-hidden rounded-2xl border-2 border-gold-400 bg-white shadow-sm">
+          <p className="bg-gold-100 px-5 py-2 text-xs font-bold uppercase tracking-wide text-gold-600">
+            ● {nextAction.type === "sign_in" ? "Sign-in is open" : "Sign-out is open"}
           </p>
-          <h2 className="mt-1 text-lg font-semibold">{nextAction.event.title}</h2>
-          <p className="text-sm text-slate-300">
-            {nextAction.event.venues.name} · until{" "}
-            {formatTime(nextAction.type === "sign_in" ? nextAction.day.sign_in_end : nextAction.day.sign_out_end)}
-          </p>
-          <div className="mt-4">
-            <AttendanceAction eventDayId={nextAction.day.id} type={nextAction.type} size="lg" inverted />
+          <div className="p-5 pt-3">
+            <h2 className="text-lg font-semibold text-brand-800">{nextAction.event.title}</h2>
+            <p className="text-sm text-slate-500">
+              {nextAction.event.venues.name} · until{" "}
+              {formatTime(nextAction.type === "sign_in" ? nextAction.day.sign_in_end : nextAction.day.sign_out_end)}
+            </p>
+            <div className="mt-4">
+              <AttendanceAction eventDayId={nextAction.day.id} type={nextAction.type} size="lg" />
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Turn on Location. You must be at the venue.</p>
           </div>
-          <p className="mt-2 text-xs text-slate-400">Turn on Location. You must be at the venue.</p>
         </section>
       )}
 

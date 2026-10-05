@@ -102,7 +102,7 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
                   {live ? (
                     <Badge tone="green">Live</Badge>
                   ) : day.day_date === today ? (
-                    <Badge tone="blue">Today</Badge>
+                    <Badge tone="gold">Today</Badge>
                   ) : null}
                 </div>
                 <Link href={`/officer/scan/${day.id}`} className={`${btnPrimary} min-h-11 w-full sm:w-auto`}>

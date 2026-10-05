@@ -283,7 +283,7 @@ export function Scanner({
         {windowLabel.text}
       </p>
 
-      <div className="mt-4 flex rounded-lg bg-slate-100 p-1 text-sm" role="tablist">
+      <div className="mt-4 flex rounded-lg bg-brand-50 p-1 text-sm" role="tablist">
         {(["scan", "manual"] as const).map((t) => (
           <button
             key={t}
@@ -291,7 +291,7 @@ export function Scanner({
             aria-selected={tab === t}
             onClick={() => setTab(t)}
             className={`min-h-10 flex-1 rounded-md font-medium transition ${
-              tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+              tab === t ? "bg-white font-semibold text-brand-800 shadow-sm ring-1 ring-gold-400" : "text-slate-500"
             }`}
           >
             {t === "scan" ? "Scan QR" : "Manual entry"}
@@ -525,7 +525,7 @@ function ManualEntry({
             <label
               key={t}
               className={`flex flex-1 cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium ${
-                type === t ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700"
+                type === t ? "border-brand-700 bg-brand-700 text-white" : "border-slate-300 text-slate-700"
               }`}
             >
               <input

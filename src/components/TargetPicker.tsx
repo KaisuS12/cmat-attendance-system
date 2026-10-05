@@ -36,7 +36,7 @@ function Chips({
               onChange(isOn(v) ? selected.filter((s) => s.toLowerCase() !== v.toLowerCase()) : [...selected, v])
             }
             className={`min-h-9 rounded-full border px-3 text-sm font-medium transition ${
-              isOn(v) ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700"
+              isOn(v) ? "border-brand-700 bg-brand-700 text-white" : "border-brand-200 bg-white text-brand-800"
             }`}
           >
             {format(v)}

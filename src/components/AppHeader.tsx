@@ -42,6 +42,8 @@ export function AppHeader({ profile }: { profile: Profile | null }) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur print:hidden">
+      {/* CMAT gold accent bar */}
+      <div className="h-1 bg-gradient-to-r from-gold-500 via-gold-400 to-gold-300" aria-hidden="true" />
       <div className={`mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 ${bottomNav ? "py-2.5 sm:pb-0 sm:pt-3" : "pt-3"}`}>
         <Link href={profile ? HOME[profile.role] : "/"} className="flex min-h-9 items-center gap-2">
           <Image
@@ -52,13 +54,13 @@ export function AppHeader({ profile }: { profile: Profile | null }) {
             className="h-10 w-10 object-contain"
             priority
           />
-          <span className="text-sm font-semibold text-slate-900">CMAT Attendance</span>
+          <span className="text-sm font-bold tracking-tight text-brand-800">CMAT Attendance</span>
         </Link>
         <div className="flex items-center gap-4">
           {profile && (
             <Link
               href="/account/password"
-              className="hidden text-sm text-slate-500 hover:text-slate-900 sm:block"
+              className="hidden text-sm text-slate-500 hover:text-brand-700 sm:block"
               title="Change password"
             >
               {profile.full_name}

@@ -59,7 +59,9 @@ export function AppNav({ items, hideOnPhone }: { items: NavItem[]; hideOnPhone: 
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`inline-flex min-h-11 items-center border-b-2 px-3 text-sm font-medium transition ${
-                  active ? "border-slate-900 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"
+                  active
+                    ? "border-gold-400 font-semibold text-brand-800"
+                    : "border-transparent text-slate-500 hover:border-gold-300 hover:text-brand-700"
                 }`}
               >
                 {item.label}
@@ -90,10 +92,13 @@ export function BottomNav({ items }: { items: NavItem[] }) {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
-                  active ? "text-slate-900" : "text-slate-400"
+                className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+                  active ? "text-brand-700" : "text-slate-400"
                 }`}
               >
+                {active && (
+                  <span className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-gold-400" aria-hidden="true" />
+                )}
                 {item.icon && <Icon name={item.icon} />}
                 {item.short ?? item.label}
               </Link>

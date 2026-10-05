@@ -9,7 +9,7 @@ export default function NotFound() {
         <p className="mt-1 text-sm text-slate-500">It may have been deleted, or the link is wrong.</p>
         <Link
           href="/"
-          className="mt-5 inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+          className="mt-5 inline-block rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
         >
           Go home
         </Link>

@@ -5,6 +5,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* CMAT brand palette — navy from the KCC seal, gold from the CMAT ring.
+   Gold is for lines, borders and fills; text uses gold-600 (5.3:1 on white). */
+@theme {
+  --color-brand-50: #eef3fb;
+  --color-brand-100: #dce6f7;
+  --color-brand-200: #bccdec;
+  --color-brand-600: #1e4a9c;
+  --color-brand-700: #163a80;
+  --color-brand-800: #112e66;
+  --color-gold-100: #fef6d8;
+  --color-gold-300: #fbdc6e;
+  --color-gold-400: #f9cb1e;
+  --color-gold-500: #e8b100;
+  --color-gold-600: #8a6500;
+}
+
 /* The UI is designed light-only; tell the browser so form controls and
    scrollbars don't switch to dark styling on phones set to dark mode. */
 :root {

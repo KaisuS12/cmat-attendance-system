@@ -117,7 +117,7 @@ export function DayAttendanceTable({
 
       {open && (
         <div className="mt-2">
-          <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-sm" role="tablist">
+          <div className="flex gap-1 overflow-x-auto rounded-lg bg-brand-50 p-1 text-sm" role="tablist">
             {tabs.map((t) => (
               <button
                 key={t.key}
@@ -125,7 +125,7 @@ export function DayAttendanceTable({
                 aria-selected={tab === t.key}
                 onClick={() => setTab(t.key)}
                 className={`min-h-9 flex-1 whitespace-nowrap rounded-md px-3 font-medium transition ${
-                  tab === t.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                  tab === t.key ? "bg-white font-semibold text-brand-800 shadow-sm ring-1 ring-gold-400" : "text-slate-500"
                 }`}
               >
                 {t.label}
@@ -230,11 +230,11 @@ export function DayAttendanceTable({
                         </span>
                       </div>
                       <div
-                        className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100"
+                        className="mt-1.5 h-2 overflow-hidden rounded-full bg-brand-50"
                         role="img"
                         aria-label={`${pct}% signed in`}
                       >
-                        <div className="h-full rounded-full bg-slate-800" style={{ width: `${pct}%` }} />
+                        <div className="h-full rounded-full bg-brand-600" style={{ width: `${pct}%` }} />
                       </div>
                     </li>
                   );

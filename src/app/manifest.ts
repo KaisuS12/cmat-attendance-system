@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "QR-based attendance for CMAT council events",
     start_url: "/",
     display: "standalone",
-    background_color: "#f8fafc",
-    theme_color: "#0f172a",
+    background_color: "#ffffff",
+    theme_color: "#163a80",
     icons: [
       { src: "/brand/cmat-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icon.png", sizes: "256x256", type: "image/png" },
