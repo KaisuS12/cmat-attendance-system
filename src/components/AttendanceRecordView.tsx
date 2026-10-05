@@ -68,9 +68,13 @@ export async function AttendanceRecordView({
   let counted = 0;
   for (const e of shown.filter(isRequired)) {
     for (const d of e.event_days) {
-      if (new Date(d.sign_out_end).getTime() > now) continue; // not over yet
+      const complete = Boolean(recordFor(d.id, "sign_in") && recordFor(d.id, "sign_out"));
+      // A day counts once it's over — or as soon as the student has fully
+      // signed in and out, even while the sign-out window is still open.
+      // Days still in progress without a complete record aren't counted yet.
+      if (!complete && new Date(d.sign_out_end).getTime() > now) continue;
       counted++;
-      if (recordFor(d.id, "sign_in") && recordFor(d.id, "sign_out")) present++;
+      if (complete) present++;
     }
   }
 
