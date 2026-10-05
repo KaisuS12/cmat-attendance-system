@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { parseCsv, toCsv } from "@/lib/csv";
 import { IMPORT_CHUNK_SIZE, isValidStudentId, normalizeStudentId, STUDENT_ID_PATTERN } from "@/lib/constants";
+import { PrintSlipsButton } from "@/components/CredentialSlips";
 import { Alert, btnPrimary, btnSecondary, cardClass, PageTitle } from "@/components/ui";
 
 interface Row {
@@ -338,7 +339,7 @@ export default function ImportStudentsPage() {
 
           {created.length > 0 && (
             <Alert kind="info">
-              Download the credentials now — temporary passwords are <strong>not stored</strong> and can&apos;t be
+              Download or print the credentials now — temporary passwords are <strong>not stored</strong> and can&apos;t be
               shown again (you can still reset a student&apos;s password later). Students must set their own password
               on first login. Keep this file private and delete it after distributing.
             </Alert>
@@ -357,6 +358,22 @@ export default function ImportStudentsPage() {
               >
                 Download credentials ({created.length})
               </button>
+            )}
+            {created.length > 0 && (
+              <PrintSlipsButton
+                label={`Print slips (${created.length})`}
+                credentials={created.map((r) => {
+                  const row = rows.find((x) => x.studentId === r.studentId);
+                  return {
+                    studentId: r.studentId,
+                    fullName: r.fullName,
+                    tempPassword: r.tempPassword ?? "",
+                    program: row?.program,
+                    yearLevel: row?.yearLevel,
+                    section: row?.section,
+                  };
+                })}
+              />
             )}
             <button
               onClick={() =>

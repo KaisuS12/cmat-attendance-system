@@ -6,13 +6,16 @@ import { SignOutButton } from "@/components/SignOutButton";
 const NAV: Record<Profile["role"], NavItem[]> = {
   admin: [
     { href: "/admin", label: "Dashboard", exact: true },
-    { href: "/officer", label: "Events" },
+    { href: "/officer", label: "Events", exact: true },
     { href: "/admin/students", label: "Students" },
     { href: "/admin/officers", label: "Officers" },
     { href: "/admin/semesters", label: "Semesters" },
     { href: "/admin/audit-log", label: "Audit log" },
   ],
-  officer: [{ href: "/officer", label: "Events" }],
+  officer: [
+    { href: "/officer", label: "Events", exact: true },
+    { href: "/officer/students", label: "Students" },
+  ],
   student: [
     { href: "/student", label: "Events", exact: true },
     { href: "/student/history", label: "My attendance" },

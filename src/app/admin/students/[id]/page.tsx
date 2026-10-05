@@ -32,7 +32,17 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
         <div className="flex items-center gap-2">
           {!student.is_active && <Badge tone="red">Deactivated</Badge>}
           {student.must_change_password && <Badge tone="amber">Temporary password</Badge>}
-          <AccountActions userId={student.id} name={student.full_name} isActive={student.is_active} />
+          <AccountActions
+            userId={student.id}
+            name={student.full_name}
+            isActive={student.is_active}
+            slip={{
+              studentId: student.student_id ?? "",
+              program: student.program,
+              yearLevel: student.year_level,
+              section: student.section,
+            }}
+          />
         </div>
       </div>
 

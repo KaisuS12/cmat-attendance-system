@@ -24,11 +24,33 @@ body {
   object-fit: cover;
 }
 
+/* Credential slips are only on screen while printing (CredentialSlips.tsx). */
+.slip-sheet {
+  display: none;
+}
+
 @media print {
   @page {
     margin: 16mm;
   }
   body {
     background: #fff;
+  }
+
+  /* While printing slips, print only the slip sheet. */
+  html.printing-slips body > *:not(.slip-sheet) {
+    display: none !important;
+  }
+  html.printing-slips .slip-sheet {
+    display: block;
+  }
+  .slip-group {
+    break-after: page;
+  }
+  .slip-group:last-child {
+    break-after: auto;
+  }
+  .slip-card {
+    break-inside: avoid;
   }
 }
