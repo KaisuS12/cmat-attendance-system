@@ -82,3 +82,133 @@ body {
     break-inside: avoid;
   }
 }
+
+/* ── Login splash (LoginForm.tsx) ───────────────────────────────────────
+   pending → run → done, as classes on .login-splash. The real login logo
+   is what animates: it starts large at the screen center (offsets/scale
+   measured in JS as CSS variables) and glides into its spot. */
+.login-splash .splash-backdrop {
+  display: none;
+}
+.login-splash.splash-pending .splash-backdrop,
+.login-splash.splash-run .splash-backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: radial-gradient(circle at 50% 50%, rgb(249 203 30 / 0.22), transparent 42vmin), #070d1c;
+}
+.login-splash .splash-logo {
+  position: relative;
+  z-index: 50;
+  transform-origin: center;
+}
+.login-splash.splash-pending .splash-logo,
+.login-splash.splash-pending .splash-content {
+  opacity: 0;
+}
+/* Fail-safe: if JavaScript never starts the animation, reveal the page. */
+.login-splash.splash-pending .splash-backdrop {
+  animation: splash-fade-out 0.4s ease 3s forwards;
+}
+.login-splash.splash-pending .splash-logo,
+.login-splash.splash-pending .splash-content {
+  animation: splash-fade-in 0.4s ease 3s forwards;
+}
+
+.login-splash.splash-run .splash-logo {
+  animation: splash-logo 1.6s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.login-splash.splash-run .splash-backdrop {
+  animation: splash-fade-out 0.7s ease 0.9s forwards;
+}
+.login-splash.splash-run .splash-tagline {
+  animation: splash-tagline 1.6s ease both;
+}
+.login-splash.splash-run .splash-content {
+  animation: splash-content-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 1.4s both;
+}
+
+.splash-tagline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + 25vmin);
+  text-align: center;
+}
+
+/* Already seen this session, or reduced motion: no splash at all. */
+html[data-splash="skip"] .login-splash .splash-backdrop {
+  display: none !important;
+}
+html[data-splash="skip"] .login-splash .splash-logo,
+html[data-splash="skip"] .login-splash .splash-content {
+  opacity: 1 !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-splash .splash-backdrop {
+    display: none !important;
+  }
+  .login-splash .splash-logo,
+  .login-splash .splash-content {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+}
+
+@keyframes splash-logo {
+  0% {
+    opacity: 0;
+    transform: translate(var(--splash-dx, 0px), var(--splash-dy, 0px)) scale(calc(var(--splash-scale, 1) * 0.82));
+  }
+  37% {
+    opacity: 1;
+    transform: translate(var(--splash-dx, 0px), var(--splash-dy, 0px)) scale(var(--splash-scale, 1));
+  }
+  56% {
+    opacity: 1;
+    transform: translate(var(--splash-dx, 0px), var(--splash-dy, 0px)) scale(var(--splash-scale, 1));
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes splash-tagline {
+  0%,
+  33% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  45%,
+  56% {
+    opacity: 1;
+    transform: none;
+  }
+  72%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes splash-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes splash-fade-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes splash-fade-in {
+  to {
+    opacity: 1;
+  }
+}

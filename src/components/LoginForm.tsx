@@ -1,11 +1,70 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { studentIdToEmail } from "@/lib/constants";
 import { Alert, btnPrimary, inputClass, labelClass } from "@/components/ui";
-import { APP_FULL_NAME } from "@/lib/brand";
+import { APP_FULL_NAME, APP_NAME, APP_TAGLINE, SPLASH_SEEN_KEY } from "@/lib/brand";
+
+// Opening animation: dark screen, the big logo at the center, which then
+// glides into its real place while the login card fades up (styles in
+// globals.css). Plays once per browser session and can be skipped.
+function useLoginSplash() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const logo = logoRef.current;
+    if (!root || !logo) return;
+
+    const finish = () => {
+      root.classList.remove("splash-pending", "splash-run");
+      root.classList.add("splash-done");
+    };
+
+    let skip = document.documentElement.dataset.splash === "skip";
+    try {
+      skip = skip || sessionStorage.getItem(SPLASH_SEEN_KEY) === "1";
+      skip = skip || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      sessionStorage.setItem(SPLASH_SEEN_KEY, "1");
+    } catch {
+      // storage blocked (private mode on some browsers): just play it
+    }
+    if (skip) {
+      finish();
+      return;
+    }
+
+    // Place the logo at the screen center, large, relative to where it
+    // really sits; the CSS animation then plays it back to its spot.
+    const rect = logo.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const scale = (Math.min(vw, vh) * 0.45) / rect.width;
+    logo.style.setProperty("--splash-dx", `${vw / 2 - (rect.left + rect.width / 2)}px`);
+    logo.style.setProperty("--splash-dy", `${vh / 2 - (rect.top + rect.height / 2)}px`);
+    logo.style.setProperty("--splash-scale", String(Math.max(1, scale)));
+    root.classList.remove("splash-pending");
+    root.classList.add("splash-run");
+
+    const onEnd = (e: AnimationEvent) => {
+      if (e.animationName === "splash-content-in") finish();
+    };
+    const onSkip = () => finish();
+    root.addEventListener("animationend", onEnd);
+    window.addEventListener("pointerdown", onSkip, { once: true });
+    window.addEventListener("keydown", onSkip, { once: true });
+    return () => {
+      root.removeEventListener("animationend", onEnd);
+      window.removeEventListener("pointerdown", onSkip);
+      window.removeEventListener("keydown", onSkip);
+    };
+  }, []);
+
+  return { rootRef, logoRef };
+}
 
 export function LoginForm({ notice }: { notice: string | null }) {
   const [tab, setTab] = useState<"student" | "staff">("student");
@@ -14,6 +73,7 @@ export function LoginForm({ notice }: { notice: string | null }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(notice);
   const [loading, setLoading] = useState(false);
+  const { rootRef, logoRef } = useLoginSplash();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,22 +112,39 @@ export function LoginForm({ notice }: { notice: string | null }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-white via-brand-50/60 to-gold-100/70 px-4 py-8">
+    <div
+      ref={rootRef}
+      className="login-splash splash-pending flex min-h-screen items-center justify-center bg-gradient-to-b from-white via-brand-50/60 to-gold-100/70 px-4 py-8"
+    >
+      {/* Dark intro screen; hidden once the animation finishes or is skipped. */}
+      <div className="splash-backdrop" aria-hidden="true">
+        <p className="splash-tagline">
+          <span className="block text-3xl font-extrabold tracking-[0.2em] text-gold-400">{APP_NAME}</span>
+          <span className="mt-1 block text-sm font-medium uppercase tracking-[0.25em] text-white/80">{APP_TAGLINE}</span>
+        </p>
+      </div>
+
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <Image
-            src="/brand/cmat-logo.png"
-            alt="College of Management, Accountancy and Technology — Kabankalan Catholic College, Inc."
-            width={160}
-            height={162}
-            className="h-32 w-32 object-contain drop-shadow-sm sm:h-40 sm:w-40"
-            priority
-          />
-          <h1 className="mt-4 text-xl font-bold tracking-tight text-brand-800">{APP_FULL_NAME}</h1>
-          <p className="mt-1 text-sm text-slate-500">Sign in to continue.</p>
+          <div ref={logoRef} className="splash-logo">
+            {/* Loaded larger than shown so it stays sharp while enlarged in the intro. */}
+            <Image
+              src="/brand/cmat-logo.png"
+              alt="College of Management, Accountancy and Technology — Kabankalan Catholic College, Inc."
+              width={480}
+              height={486}
+              sizes="480px"
+              className="h-32 w-32 object-contain drop-shadow-sm sm:h-40 sm:w-40"
+              priority
+            />
+          </div>
+          <div className="splash-content">
+            <h1 className="mt-4 text-xl font-bold tracking-tight text-brand-800">{APP_FULL_NAME}</h1>
+            <p className="mt-1 text-sm text-slate-500">Sign in to continue.</p>
+          </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="splash-content overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="h-1 bg-gradient-to-r from-gold-500 via-gold-400 to-gold-300" aria-hidden="true" />
           <div className="p-6 sm:p-8">
           <div className="flex rounded-lg bg-brand-50 p-1 text-sm" role="tablist">
