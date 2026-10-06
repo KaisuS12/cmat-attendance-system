@@ -119,7 +119,7 @@ export function AttendanceAction({
             return;
           }
 
-          const dataUrl = await QRCode.toDataURL(data.token, { width: 480, margin: 2, errorCorrectionLevel: "M" });
+          const dataUrl = await QRCode.toDataURL(data.token, { width: 480, margin: 4, errorCorrectionLevel: "M" });
           setQrDataUrl(dataUrl);
           setToken(data.token);
           setTokenId((decodeJwt(data.token).jti as string) ?? null);

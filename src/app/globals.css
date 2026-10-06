@@ -34,9 +34,10 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* html5-qrcode injects a <video>; keep it inside the rounded scanner box. */
+/* html5-qrcode injects a <video>; make it fill the full-screen scanner area. */
 #qr-scanner-region video {
   width: 100% !important;
+  height: 100% !important;
   object-fit: cover;
 }
 

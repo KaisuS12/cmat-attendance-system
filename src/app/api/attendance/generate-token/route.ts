@@ -139,12 +139,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not issue QR token." }, { status: 500 });
   }
 
-  const token = await signQrToken({
-    jti: tokenRow.id,
-    studentId: profile.id,
-    eventDayId,
-    type,
-  });
+  const token = await signQrToken({ jti: tokenRow.id });
 
   // Not audit-logged: students generate thousands of codes per event, which
   // would bury the officer/admin actions the audit log exists for. The token

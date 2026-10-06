@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { formatDayDate, formatTime, windowState } from "@/lib/datetime";
 import { Alert, btnPrimary, btnSecondary, inputClass, labelClass } from "@/components/ui";
 import type { AttendanceType, EventDay } from "@/types/database";
@@ -86,9 +86,11 @@ export function Scanner({
   const lastTokenRef = useRef<{ token: string; at: number } | null>(null);
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [tab, setTab] = useState<"scan" | "manual">("scan");
+  const [sheet, setSheet] = useState<null | "manual" | "recent">(null);
+  const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
   const [counts, setCounts] = useState(initialCounts);
   const [recent, setRecent] = useState<RecentScan[]>([]);
   const [now, setNow] = useState(() => Date.now());
@@ -161,11 +163,11 @@ export function Scanner({
             manual: !!r.manual,
           },
           ...prev,
-        ].slice(0, 10)
+        ].slice(0, 20)
       );
     }
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-    clearTimerRef.current = setTimeout(() => setResult(null), r.ok ? 4000 : 6000);
+    clearTimerRef.current = setTimeout(() => setResult(null), r.ok ? 3000 : 5000);
   }, []);
 
   // Returns false only when the server was never reached, so the same code
@@ -194,17 +196,26 @@ export function Scanner({
     [day.id, showResult]
   );
 
-  // Camera lifecycle. Only runs while the scan tab is open, so switching to
-  // manual entry releases the camera.
+  // Camera lifecycle. The camera is released while the manual-entry panel is
+  // open, and restarted when switching between back and front cameras.
+  const cameraOn = sheet !== "manual";
   useEffect(() => {
-    if (tab !== "scan") return;
+    if (!cameraOn) return;
     let cancelledBeforeStart = false;
-    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
+    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, {
+      verbose: false,
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      // Native barcode detection (Android Chrome) is much faster than the
+      // JavaScript decoder; it falls back automatically where unsupported.
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    });
 
     scanner
       .start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: (w, h) => ({ width: Math.min(w, h) * 0.75, height: Math.min(w, h) * 0.75 }) },
+        { facingMode: facing },
+        // No qrbox: the whole camera view is scanned, so the QR doesn't have
+        // to be lined up inside a small square.
+        { fps: 15 },
         async (decodedText) => {
           if (busyRef.current) return;
           const last = lastTokenRef.current;
@@ -222,12 +233,14 @@ export function Scanner({
         undefined
       )
       .then(() => {
-        // The effect was cleaned up (e.g. tab switch) before start() resolved —
-        // stop it now that it's actually running, since the cleanup couldn't yet.
+        // The effect was cleaned up before start() resolved — stop it now that
+        // it's actually running, since the cleanup couldn't yet.
         if (cancelledBeforeStart) {
           scanner.stop().catch(() => {});
           return;
         }
+        setCameraError(null);
+        setCameraReady(true);
         // Gyms are often dim and phone screens reflect overhead lights; the
         // flashlight helps the camera read the student's screen.
         try {
@@ -238,9 +251,7 @@ export function Scanner({
         }
       })
       .catch(() =>
-        setCameraError(
-          "Couldn't open the camera. Allow camera access for this site (the page must be on HTTPS), or use Manual entry."
-        )
+        setCameraError("Couldn't open the camera. Allow camera access for this site in your browser settings.")
       );
 
     return () => {
@@ -249,149 +260,223 @@ export function Scanner({
       // hasn't actually started yet, so only call it once isScanning is true.
       if (scanner.isScanning) scanner.stop().catch(() => {});
       setTorch(null);
+      setCameraReady(false);
     };
-  }, [tab, submitScan]);
+  }, [cameraOn, facing, submitScan]);
+
+  const toolButton =
+    "flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl bg-white/10 text-xs font-medium text-white transition active:scale-95 active:bg-white/20 disabled:opacity-40";
 
   return (
-    <div className="mx-auto max-w-md">
-      <Link href={`/officer/events/${eventId}`} className="text-sm text-slate-500 hover:text-slate-900">
-        ← {eventTitle}
-      </Link>
-
-      <div className="mt-2 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-slate-900">{formatDayDate(day.day_date, "long")}</h1>
-          <p className="truncate text-sm text-slate-500">{venueName}</p>
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-3 py-2">
+        <Link
+          href={`/officer/events/${eventId}`}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-xl active:bg-white/20"
+          aria-label="Back to event"
+        >
+          ←
+        </Link>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{eventTitle}</p>
+          <p className="truncate text-xs text-white/60">
+            {formatDayDate(day.day_date, "short")} · {venueName}
+          </p>
         </div>
-        <div className="flex shrink-0 gap-3 text-center">
-          <div>
-            <p className="text-xl font-semibold tabular-nums text-slate-900">{counts.sign_in}</p>
-            <p className="text-[10px] uppercase tracking-wide text-slate-400">In</p>
+        <div className="flex shrink-0 gap-1.5 text-center">
+          <div className="min-w-12 rounded-lg bg-white/10 px-2 py-1">
+            <p className="text-lg font-bold leading-tight">{counts.sign_in}</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/60">In</p>
           </div>
-          <div>
-            <p className="text-xl font-semibold tabular-nums text-slate-900">{counts.sign_out}</p>
-            <p className="text-[10px] uppercase tracking-wide text-slate-400">Out</p>
+          <div className="min-w-12 rounded-lg bg-white/10 px-2 py-1">
+            <p className="text-lg font-bold leading-tight">{counts.sign_out}</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/60">Out</p>
           </div>
         </div>
       </div>
 
       <p
-        className={`mt-3 rounded-md px-3 py-1.5 text-sm font-medium ${
-          windowLabel.tone === "open" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
+        className={`mx-3 rounded-full px-3 py-1 text-center text-xs font-medium ${
+          windowLabel.tone === "open" ? "bg-emerald-500/20 text-emerald-200" : "bg-amber-400/20 text-amber-200"
         }`}
       >
         {windowLabel.text}
       </p>
 
-      <div className="mt-4 flex rounded-lg bg-brand-50 p-1 text-sm" role="tablist">
-        {(["scan", "manual"] as const).map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`min-h-10 flex-1 rounded-md font-medium transition ${
-              tab === t ? "bg-white font-semibold text-brand-800 shadow-sm ring-1 ring-gold-400" : "text-slate-500"
-            }`}
-          >
-            {t === "scan" ? "Scan QR" : "Manual entry"}
-          </button>
-        ))}
+      {/* Camera */}
+      <div
+        className={`relative mx-3 mt-2 min-h-0 flex-1 overflow-hidden rounded-3xl bg-black ring-4 transition-[box-shadow] duration-200 ${
+          result ? (result.ok ? "ring-emerald-400" : "ring-red-500") : "ring-transparent"
+        }`}
+      >
+        <div id={SCANNER_ELEMENT_ID} className="absolute inset-0" />
+
+        {/* Aiming guide only: the whole view is scanned. */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
+          <div className="relative aspect-square w-[68%] max-w-xs">
+            <span className="absolute left-0 top-0 h-10 w-10 rounded-tl-2xl border-l-4 border-t-4 border-gold-400" />
+            <span className="absolute right-0 top-0 h-10 w-10 rounded-tr-2xl border-r-4 border-t-4 border-gold-400" />
+            <span className="absolute bottom-0 left-0 h-10 w-10 rounded-bl-2xl border-b-4 border-l-4 border-gold-400" />
+            <span className="absolute bottom-0 right-0 h-10 w-10 rounded-br-2xl border-b-4 border-r-4 border-gold-400" />
+          </div>
+        </div>
+
+        <p className="pointer-events-none absolute inset-x-0 top-3 text-center text-sm font-medium text-white drop-shadow">
+          Point at the student&apos;s QR code
+        </p>
+
+        {!cameraReady && !cameraError && cameraOn && (
+          <p className="absolute inset-0 flex items-center justify-center text-sm text-white/70">Starting camera…</p>
+        )}
+        {cameraError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+            <p className="text-sm text-white/90">{cameraError}</p>
+            <button onClick={() => setSheet("manual")} className="rounded-full bg-gold-400 px-5 py-2.5 text-sm font-semibold text-brand-800">
+              Use manual entry
+            </button>
+          </div>
+        )}
+
+        {result && <ResultOverlay result={result} onDismiss={() => setResult(null)} />}
       </div>
 
-      {result && <ResultCard result={result} onDismiss={() => setResult(null)} />}
+      {/* Thumb-reach controls */}
+      <div className="grid grid-cols-4 gap-2 px-3 py-3">
+        <button onClick={() => setSheet("manual")} className={toolButton}>
+          <span className="text-xl" aria-hidden="true">✍️</span>
+          Manual
+        </button>
+        <button
+          onClick={async () => {
+            if (!torch) return;
+            const next = !torch.on;
+            try {
+              await torch.apply(next);
+              setTorch({ ...torch, on: next });
+            } catch {
+              setTorch(null);
+            }
+          }}
+          disabled={!torch}
+          aria-pressed={torch?.on ?? false}
+          className={`${toolButton} ${torch?.on ? "!bg-gold-400 !text-brand-800" : ""}`}
+        >
+          <span className="text-xl" aria-hidden="true">🔦</span>
+          {torch?.on ? "Light on" : "Light"}
+        </button>
+        <button onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))} className={toolButton}>
+          <span className="text-xl" aria-hidden="true">🔄</span>
+          Flip
+        </button>
+        <button onClick={() => setSheet("recent")} className={toolButton}>
+          <span className="text-xl font-bold leading-none" aria-hidden="true">{recent.length}</span>
+          Recent
+        </button>
+      </div>
 
-      {tab === "scan" ? (
-        <>
-          {cameraError && (
-            <div className="mt-4">
-              <Alert kind="error">{cameraError}</Alert>
-            </div>
-          )}
-          <div className="relative -mx-4 mt-4 sm:mx-0">
-            <div id={SCANNER_ELEMENT_ID} className="overflow-hidden bg-black sm:rounded-xl" />
-            {torch && (
-              <button
-                type="button"
-                onClick={async () => {
-                  const next = !torch.on;
-                  try {
-                    await torch.apply(next);
-                    setTorch({ ...torch, on: next });
-                  } catch {
-                    setTorch(null);
-                  }
+      {sheet && (
+        <BottomSheet title={sheet === "manual" ? "Manual entry" : "Recent on this phone"} onClose={() => setSheet(null)}>
+          {sheet === "manual" ? (
+            <>
+              <ManualEntry
+                eventDayId={day.id}
+                defaultType={signOutState !== "not_open" ? "sign_out" : "sign_in"}
+                onResult={(r) => {
+                  showResult(r);
+                  if (r.ok) setSheet(null);
                 }}
-                aria-pressed={torch.on}
-                className={`absolute right-3 top-3 min-h-11 rounded-full px-4 text-sm font-medium shadow ${
-                  torch.on ? "bg-amber-300 text-slate-900" : "bg-white/90 text-slate-800"
-                }`}
-              >
-                {torch.on ? "Light on" : "Light"}
-              </button>
-            )}
-          </div>
-          <p className="mt-3 text-center text-xs text-slate-500">
-            Check that the name shown matches the person in front of you.
-          </p>
-          {debugTools && <DebugTokenForm onSubmit={submitScan} />}
-        </>
-      ) : (
-        <ManualEntry
-          eventDayId={day.id}
-          defaultType={signOutState !== "not_open" ? "sign_out" : "sign_in"}
-          onResult={showResult}
-        />
-      )}
-
-      {recent.length > 0 && (
-        <div className="mt-6">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Recent on this device</h2>
-          <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-            {recent.map((r) => (
-              <li key={r.key} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                <span className="min-w-0 truncate">
-                  <span className="font-medium text-slate-800">{r.name}</span>{" "}
-                  <span className="text-slate-400">{r.studentId}</span>
-                </span>
-                <span className="shrink-0 text-xs text-slate-500">
-                  {r.type === "sign_in" ? "In" : "Out"}
-                  {r.manual && " · manual"} · {formatTime(r.at.toISOString())}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+              />
+              {debugTools && <DebugTokenForm onSubmit={submitScan} />}
+            </>
+          ) : recent.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-500">No scans yet on this phone.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {recent.map((r) => (
+                <li key={r.key} className="flex items-center justify-between gap-2 py-2.5 text-sm">
+                  <span className="min-w-0 truncate">
+                    <span className="font-medium text-slate-800">{r.name}</span>{" "}
+                    <span className="text-slate-400">{r.studentId}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-500">
+                    {r.type === "sign_in" ? "In" : "Out"}
+                    {r.manual && " · manual"} · {formatTime(r.at.toISOString())}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </BottomSheet>
       )}
     </div>
   );
 }
 
-function ResultCard({ result, onDismiss }: { result: ScanResult; onDismiss: () => void }) {
+// Big result card over the camera, so the layout never shifts and the name
+// is readable at arm's length.
+function ResultOverlay({ result, onDismiss }: { result: ScanResult; onDismiss: () => void }) {
   return (
     <button
       onClick={onDismiss}
       aria-live="assertive"
-      className={`mt-4 block w-full rounded-xl border-2 p-4 text-left ${
-        result.ok ? "border-emerald-400 bg-emerald-50" : "border-red-300 bg-red-50"
+      className={`absolute inset-x-3 bottom-3 block rounded-2xl p-4 text-left shadow-2xl ${
+        result.ok ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
       }`}
     >
       {result.ok && result.student ? (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+          <p className="text-xs font-bold uppercase tracking-wide text-white/90">
             ✓ {result.type === "sign_in" ? "Signed in" : "Signed out"}
             {result.manual && " (manual)"}
           </p>
-          <p className="mt-1 text-2xl font-semibold leading-tight text-emerald-900">{result.student.full_name}</p>
-          <p className="mt-0.5 text-sm text-emerald-800">{describe(result.student)}</p>
+          <p className="mt-1 text-2xl font-bold leading-tight">{result.student.full_name}</p>
+          <p className="mt-0.5 text-sm text-white/90">{describe(result.student)}</p>
+          <p className="mt-2 text-[11px] text-white/80">Check that this is the person in front of you.</p>
         </>
       ) : (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">✕ Not recorded</p>
-          <p className="mt-1 text-base font-medium text-red-800">{result.message}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-white/90">✕ Not recorded</p>
+          <p className="mt-1 text-lg font-semibold leading-snug">{result.message}</p>
+          <p className="mt-2 text-[11px] text-white/80">Tap to dismiss</p>
         </>
       )}
     </button>
+  );
+}
+
+function BottomSheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/50" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[88vh] w-full overflow-y-auto rounded-t-3xl bg-white p-4 text-slate-900 shadow-2xl"
+        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+      >
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200" aria-hidden="true" />
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-brand-800">{title}</h2>
+          <button onClick={onClose} className="min-h-10 rounded-full px-3 text-sm font-medium text-slate-500 hover:bg-slate-100">
+            Close
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
