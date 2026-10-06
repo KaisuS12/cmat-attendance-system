@@ -1,12 +1,9 @@
 import { LoginForm } from "@/components/LoginForm";
-import { SPLASH_SEEN_KEY } from "@/lib/brand";
 
-// Runs before the first paint: if the intro already played this session (or
-// the device asks for reduced motion), mark <html> so the dark splash never
-// flashes. LoginForm repeats the same check after hydration.
-const SPLASH_PRECHECK = `try{if(sessionStorage.getItem(${JSON.stringify(
-  SPLASH_SEEN_KEY
-)})==="1"||matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.dataset.splash="skip"}catch(e){}`;
+// Runs before the first paint: on devices that ask for reduced motion, mark
+// <html> so the dark intro never flashes. LoginForm repeats the check after
+// hydration.
+const SPLASH_PRECHECK = `try{if(matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.dataset.splash="skip"}catch(e){}`;
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { deactivated, noprofile } = await searchParams;

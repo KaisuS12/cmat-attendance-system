@@ -5,11 +5,11 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { studentIdToEmail } from "@/lib/constants";
 import { Alert, btnPrimary, inputClass, labelClass } from "@/components/ui";
-import { APP_FULL_NAME, APP_NAME, APP_TAGLINE, SPLASH_SEEN_KEY } from "@/lib/brand";
+import { APP_FULL_NAME, APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 // Opening animation: dark screen, the big logo at the center, which then
 // glides into its real place while the login card fades up (styles in
-// globals.css). Plays once per browser session and can be skipped.
+// globals.css). Plays on every load of the login page and can be skipped.
 function useLoginSplash() {
   const rootRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
@@ -24,14 +24,11 @@ function useLoginSplash() {
       root.classList.add("splash-done");
     };
 
-    let skip = document.documentElement.dataset.splash === "skip";
-    try {
-      skip = skip || sessionStorage.getItem(SPLASH_SEEN_KEY) === "1";
-      skip = skip || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      sessionStorage.setItem(SPLASH_SEEN_KEY, "1");
-    } catch {
-      // storage blocked (private mode on some browsers): just play it
-    }
+    // Plays on every load of the login page (including refreshes), except on
+    // devices that ask for reduced motion.
+    const skip =
+      document.documentElement.dataset.splash === "skip" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (skip) {
       finish();
       return;
