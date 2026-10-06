@@ -67,6 +67,19 @@ describe("computeSemesterAnalytics", () => {
     expect(result.averageRate).toBeCloseTo(3 / 5);
   });
 
+  it("counts completed (in and out) per day", () => {
+    expect(result.trend.map((t) => t.complete)).toEqual([1, 1]); // Ben never signed out of Assembly
+    expect(result.trend[0].completeRate).toBeCloseTo(1 / 3);
+  });
+
+  it("lists every event day for the calendar, including upcoming ones", () => {
+    expect(result.calendar.map((c) => [c.date, c.title])).toEqual([
+      ["2026-10-01", "Assembly"],
+      ["2026-10-05", "BSIT Seminar"],
+      ["2026-10-20", "Upcoming"],
+    ]);
+  });
+
   it("splits sign-ins by method", () => {
     expect(result.methods).toEqual({ qr: 2, manual: 1 });
     expect(result.totalCheckIns).toBe(3);

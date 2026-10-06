@@ -162,7 +162,15 @@ export interface TrendPoint {
   date: string;
   expected: number;
   signedIn: number;
-  rate: number; // 0–1
+  complete: number; // expected students with both sign-in and sign-out
+  rate: number; // 0–1, signed in / expected
+  completeRate: number; // 0–1, complete / expected
+}
+
+export interface CalendarEntry {
+  date: string; // YYYY-MM-DD
+  eventId: string;
+  title: string;
 }
 
 export interface GroupStat {
@@ -190,6 +198,7 @@ export interface SemesterAnalytics {
   methods: { qr: number; manual: number };
   watchList: WatchRow[];
   recent: EventSummary[];
+  calendar: CalendarEntry[]; // every event day in the semester, finished or not
 }
 
 // A student is "to watch" below this share of required days attended.
@@ -263,9 +272,11 @@ export function computeSemesterAnalytics({
       }
 
       let daySignedIn = 0;
+      let dayComplete = 0;
       for (const s of eligible) {
         const inToday = signedInIds.has(s.id);
         if (inToday) daySignedIn++;
+        if (completeIds.has(s.id)) dayComplete++;
         bump(programs, groupKey(s.program) || "~", s.program?.trim() || "Unassigned", inToday);
         bump(years, groupKey(s.year_level) || "~", yearLabel(s.year_level), inToday);
 
@@ -282,7 +293,9 @@ export function computeSemesterAnalytics({
         date: day.day_date,
         expected: eligible.length,
         signedIn: daySignedIn,
+        complete: dayComplete,
         rate: eligible.length > 0 ? daySignedIn / eligible.length : 0,
+        completeRate: eligible.length > 0 ? dayComplete / eligible.length : 0,
       });
       eventSignedIn += daySignedIn;
       totalExpected += eligible.length;
@@ -322,6 +335,9 @@ export function computeSemesterAnalytics({
     methods,
     watchList: watching.slice(0, WATCH_LIST_SIZE),
     recent,
+    calendar: events
+      .flatMap((e) => e.event_days.map((d) => ({ date: d.day_date, eventId: e.id, title: e.title })))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)),
   };
 }
 
