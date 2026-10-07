@@ -40,7 +40,6 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
               studentId: student.student_id ?? "",
               program: student.program,
               yearLevel: student.year_level,
-              section: student.section,
             }}
           />
         </div>

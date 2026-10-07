@@ -22,10 +22,9 @@ const bodySchema = z.object({
     .optional(),
   program: optionalText,
   yearLevel: optionalText,
-  section: optionalText,
 });
 
-// Fix a student's details (typo in the name, wrong section, wrong ID). A new
+// Fix a student's details (typo in the name, wrong year, wrong ID). A new
 // student ID also changes the login, since it's the account's username.
 export async function PATCH(request: Request, { params }: RouteContext<"/api/students/[id]">) {
   const { profile, error } = await requireRole("admin");
@@ -39,7 +38,7 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/stu
   const admin = createAdminClient();
   const { data: before } = await admin
     .from("profiles")
-    .select("full_name, student_id, program, year_level, section, role")
+    .select("full_name, student_id, program, year_level, role")
     .eq("id", id)
     .single();
   if (!before || before.role !== "student") {
@@ -50,7 +49,6 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/stu
   if (b.fullName !== undefined) changes.full_name = b.fullName;
   if (b.program !== undefined) changes.program = b.program;
   if (b.yearLevel !== undefined) changes.year_level = b.yearLevel;
-  if (b.section !== undefined) changes.section = b.section;
 
   const idChanged = b.studentId !== undefined && b.studentId !== before.student_id;
   if (idChanged) {
@@ -96,7 +94,6 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/stu
         student_id: before.student_id,
         program: before.program,
         year_level: before.year_level,
-        section: before.section,
       },
       after: changes,
     },

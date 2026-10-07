@@ -220,7 +220,7 @@ export default async function AdminDashboard() {
                   <thead className="bg-gold-100 text-left text-xs uppercase tracking-wide text-gold-600">
                     <tr>
                       <th className="px-3 py-2">Student</th>
-                      <th className="hidden px-3 py-2 sm:table-cell">Section</th>
+                      <th className="hidden px-3 py-2 sm:table-cell">Program / Year</th>
                       <th className="px-3 py-2 text-right">Attended</th>
                       <th className="px-3 py-2 text-right">Rate</th>
                     </tr>
@@ -235,9 +235,7 @@ export default async function AdminDashboard() {
                           <span className="block text-xs text-slate-500">{w.student.student_id}</span>
                         </td>
                         <td className="hidden px-3 py-2 text-slate-600 sm:table-cell">
-                          {[w.student.program, [w.student.year_level, w.student.section].filter(Boolean).join("-")]
-                            .filter(Boolean)
-                            .join(" ")}
+                          {[w.student.program, w.student.year_level].filter(Boolean).join(" ")}
                         </td>
                         <td className="px-3 py-2 text-right text-slate-700">
                           {w.attended} / {w.required}

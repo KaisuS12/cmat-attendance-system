@@ -16,7 +16,6 @@ interface ImportResult {
   error?: string;
   program?: string;
   yearLevel?: string;
-  section?: string;
 }
 
 // Excel files are read in the browser; SheetJS is only downloaded when one
@@ -81,12 +80,11 @@ export default function ImportStudentsPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            students: chunk.map(({ studentId, fullName, program, yearLevel, section }) => ({
+            students: chunk.map(({ studentId, fullName, program, yearLevel }) => ({
               studentId,
               fullName,
               program,
               yearLevel,
-              section,
             })),
             updateExisting,
           }),
@@ -105,7 +103,6 @@ export default function ImportStudentsPage() {
             ...r,
             program: chunk[j]?.program,
             yearLevel: chunk[j]?.yearLevel,
-            section: chunk[j]?.section,
           }))
         );
       } catch (err) {
@@ -144,7 +141,7 @@ export default function ImportStudentsPage() {
           Upload the masterlist as it is — <strong>Excel (.xlsx / .xls)</strong> or CSV. Title rows at the top and
           &ldquo;Male&rdquo; / &ldquo;Female&rdquo; rows are skipped automatically. Only two columns are needed:{" "}
           <strong>Student Name</strong> and <strong>Course</strong> (e.g. &ldquo;BSTM 1&rdquo; becomes program BSTM, year
-          1). Section is optional.
+          1).
         </p>
         <p>
           No student ID column? Each student gets one automatically (<code>{generatedIdPrefix()}0001</code>,{" "}
@@ -229,7 +226,7 @@ export default function ImportStudentsPage() {
                           </td>
                           <td className="px-3 py-1.5">{r.fullName}</td>
                           <td className="px-3 py-1.5">{r.program}</td>
-                          <td className="px-3 py-1.5">{[r.yearLevel, r.section].filter(Boolean).join("-")}</td>
+                          <td className="px-3 py-1.5">{r.yearLevel}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -344,7 +341,6 @@ export default function ImportStudentsPage() {
                   tempPassword: r.tempPassword ?? "",
                   program: r.program,
                   yearLevel: r.yearLevel,
-                  section: r.section,
                 }))}
               />
             )}

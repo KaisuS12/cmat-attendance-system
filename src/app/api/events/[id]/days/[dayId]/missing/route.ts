@@ -7,7 +7,7 @@ import { dayStats, loadDayAttendance, loadEligibleStudents, sectionLabel } from 
 import type { EventTargets } from "@/lib/eligibility";
 
 // Expected students with no sign-in for one event day, as a CSV — for
-// follow-up by section representatives.
+// follow-up by class representatives.
 export async function GET(
   _request: Request,
   { params }: RouteContext<"/api/events/[id]/days/[dayId]/missing">
@@ -34,7 +34,7 @@ export async function GET(
   );
 
   return csvResponse(`${event.title} - ${formatDayDate(day.day_date, "numeric")} - missing.csv`, [
-    ["Student ID", "Name", "Program", "Year", "Section"],
-    ...sorted.map((s) => [s.student_id, s.full_name, s.program, s.year_level, s.section]),
+    ["Student ID", "Name", "Program", "Year"],
+    ...sorted.map((s) => [s.student_id, s.full_name, s.program, s.year_level]),
   ]);
 }

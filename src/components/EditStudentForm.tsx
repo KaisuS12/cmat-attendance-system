@@ -12,7 +12,6 @@ export function EditStudentForm({ student }: { student: Profile }) {
   const [studentId, setStudentId] = useState(student.student_id ?? "");
   const [program, setProgram] = useState(student.program ?? "");
   const [yearLevel, setYearLevel] = useState(student.year_level ?? "");
-  const [section, setSection] = useState(student.section ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +29,6 @@ export function EditStudentForm({ student }: { student: Profile }) {
           fullName,
           program,
           yearLevel,
-          section,
           ...(idChanged ? { studentId } : {}),
         }),
       });
@@ -71,7 +69,6 @@ export function EditStudentForm({ student }: { student: Profile }) {
         {field("Student ID", studentId, setStudentId, true)}
         {field("Program", program, setProgram)}
         {field("Year level", yearLevel, setYearLevel)}
-        {field("Section", section, setSection)}
       </div>
       {idChanged && (
         <Alert kind="info">

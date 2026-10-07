@@ -9,7 +9,7 @@ import type { Profile } from "@/types/database";
 const PAGE_SIZE = 50;
 
 function groupLabel(s: Profile) {
-  return [s.program, [s.year_level, s.section].filter(Boolean).join("-")].filter(Boolean).join(" ");
+  return [s.program, s.year_level].filter(Boolean).join(" ");
 }
 
 // Searchable, paginated student list. Admins link through to each student's
@@ -36,7 +36,7 @@ export async function StudentDirectory({
   // Strip characters that have meaning inside a PostgREST or() filter.
   const term = q.replace(/[,()*%\\:"]/g, " ").trim();
   if (term) query = query.or(
-      `student_id.ilike.%${term}%,full_name.ilike.%${term}%,program.ilike.%${term}%,section.ilike.%${term}%`
+      `student_id.ilike.%${term}%,full_name.ilike.%${term}%,program.ilike.%${term}%`
     );
 
   const { data, count } = await query;
@@ -51,7 +51,7 @@ export async function StudentDirectory({
         name={s.full_name}
         isActive={s.is_active}
         canDeactivate={false}
-        slip={{ studentId: s.student_id ?? "", program: s.program, yearLevel: s.year_level, section: s.section }}
+        slip={{ studentId: s.student_id ?? "", program: s.program, yearLevel: s.year_level }}
       />
     ) : (
       <Link href={`/admin/students/${s.id}`} className="inline-flex min-h-9 items-center text-sm text-slate-500 hover:text-slate-900">
@@ -65,7 +65,7 @@ export async function StudentDirectory({
         {count ?? 0} {q ? "matching" : "total"}
       </p>
 
-      <LiveSearch initialQuery={q} placeholder="Search by name, student ID, program or section" />
+      <LiveSearch initialQuery={q} placeholder="Search by name, student ID or program" />
 
       <div className="mt-4">
         {students.length === 0 ? (
@@ -106,7 +106,7 @@ export async function StudentDirectory({
                   <tr>
                     <th className="px-4 py-2">Name</th>
                     <th className="px-4 py-2">Student ID</th>
-                    <th className="px-4 py-2">Program / Section</th>
+                    <th className="px-4 py-2">Program / Year</th>
                     <th className="px-4 py-2">Temporary password</th>
                     <th className="px-4 py-2" />
                   </tr>

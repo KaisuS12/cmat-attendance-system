@@ -43,7 +43,7 @@ describe("parseMasterlistTable", () => {
       ["bad id", "Someone Else"],
     ]);
     expect(parsed.rows).toEqual([
-      { line: 3, studentId: "08-121207", fullName: "Gaudiano, Marvin", program: "BSBA-FM", yearLevel: "4", section: "" },
+      { line: 3, studentId: "08-121207", fullName: "Gaudiano, Marvin", program: "BSBA-FM", yearLevel: "4" },
     ]);
     expect(parsed.skipped[0].reason).toBe("Unrecognized student ID format");
   });
@@ -53,7 +53,7 @@ describe("parseMasterlistTable", () => {
       ["student_id", "full_name", "program", "year_level", "section"],
       ["21-00123", "Juan Dela Cruz", "bsit", "3rd", "A"],
     ]);
-    expect(parsed.rows[0]).toMatchObject({ studentId: "21-00123", fullName: "Juan Dela Cruz", program: "BSIT", yearLevel: "3", section: "A" });
+    expect(parsed.rows[0]).toMatchObject({ studentId: "21-00123", fullName: "Juan Dela Cruz", program: "BSIT", yearLevel: "3" });
   });
 
   it("explains a missing header", () => {
@@ -63,10 +63,10 @@ describe("parseMasterlistTable", () => {
 
 describe("helpers", () => {
   it("splits course and year", () => {
-    expect(splitCourse("BSTM 1")).toEqual({ program: "BSTM", yearLevel: "1", section: "" });
-    expect(splitCourse("BSBA-FM 4")).toEqual({ program: "BSBA-FM", yearLevel: "4", section: "" });
-    expect(splitCourse("BSIT 3A")).toEqual({ program: "BSIT", yearLevel: "3", section: "A" });
-    expect(splitCourse("Undeclared")).toEqual({ program: "Undeclared", yearLevel: "", section: "" });
+    expect(splitCourse("BSTM 1")).toEqual({ program: "BSTM", yearLevel: "1" });
+    expect(splitCourse("BSBA-FM 4")).toEqual({ program: "BSBA-FM", yearLevel: "4" });
+    expect(splitCourse("BSIT 3A")).toEqual({ program: "BSIT", yearLevel: "3" });
+    expect(splitCourse("Undeclared")).toEqual({ program: "Undeclared", yearLevel: "" });
   });
 
   it("formats all-caps names, keeping suffixes and mixed-case input", () => {

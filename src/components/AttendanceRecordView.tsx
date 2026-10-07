@@ -113,8 +113,8 @@ export async function AttendanceRecordView({
             <h2 className="mt-1 text-lg font-semibold text-slate-900">{student.full_name}</h2>
             <p className="text-sm text-slate-600">
               {student.student_id}
-              {[student.program, student.year_level, student.section].filter(Boolean).length > 0 && (
-                <> · {[student.program, student.year_level, student.section].filter(Boolean).join(" · ")}</>
+              {[student.program, student.year_level].filter(Boolean).length > 0 && (
+                <> · {[student.program, student.year_level].filter(Boolean).join(" · ")}</>
               )}
             </p>
             <p className="mt-1 text-sm text-slate-500">{semester?.name ?? "All events"}</p>

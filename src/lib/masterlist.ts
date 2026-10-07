@@ -12,7 +12,6 @@ export interface MasterlistRow {
   fullName: string;
   program: string;
   yearLevel: string;
-  section: string;
 }
 
 export interface MasterlistIssue {
@@ -34,7 +33,6 @@ const ALIASES = {
   course: ["course", "course & year", "course and year", "course/year", "course & yr", "program & year", "program/year"],
   program: ["program", "degree"],
   yearLevel: ["year_level", "yearlevel", "year level", "year", "yr", "yr level", "year lvl"],
-  section: ["section", "sec"],
 } as const;
 
 type Col = keyof typeof ALIASES;
@@ -45,12 +43,12 @@ const GROUP_ROW = /^(male|female|males|females|boys?|girls?|total.*|sub-?total.*
 // "BSTM 1", "BSBA-FM 4", "BSIT 3A", "BSA-2"
 const COURSE_YEAR = /^([A-Za-z][A-Za-z.&-]*(?:\s+[A-Za-z][A-Za-z.&-]*)*?)[\s-]+(\d)\s*([A-Za-z])?$/;
 
-/** "BSTM 1" → { program: "BSTM", yearLevel: "1", section: "" } */
-export function splitCourse(course: string): { program: string; yearLevel: string; section: string } {
+/** "BSTM 1" → { program: "BSTM", yearLevel: "1" }. A section letter ("BSIT 3A") is dropped. */
+export function splitCourse(course: string): { program: string; yearLevel: string } {
   const c = course.trim().replace(/\s+/g, " ");
   const m = c.match(COURSE_YEAR);
-  if (!m) return { program: c, yearLevel: "", section: "" };
-  return { program: m[1].toUpperCase(), yearLevel: m[2], section: (m[3] ?? "").toUpperCase() };
+  if (!m) return { program: c, yearLevel: "" };
+  return { program: m[1].toUpperCase(), yearLevel: m[2] };
 }
 
 const KEEP_UPPER = /^(II|III|IV|V|VI|VII|VIII|IX|X)$/;
@@ -123,11 +121,10 @@ export function parseMasterlistTable(table: string[][]): ParsedMasterlist {
 
     const course = cell(r, cols.course) || lastCourse;
     if (cell(r, cols.course)) lastCourse = cell(r, cols.course);
-    const fromCourse = course ? splitCourse(course) : { program: "", yearLevel: "", section: "" };
+    const fromCourse = course ? splitCourse(course) : { program: "", yearLevel: "" };
 
     const program = (cell(r, cols.program) || fromCourse.program).toUpperCase();
     const yearLevel = cell(r, cols.yearLevel).replace(/\D+/g, "") || fromCourse.yearLevel;
-    const section = cell(r, cols.section) || fromCourse.section;
     const studentId = normalizeStudentId(cell(r, cols.studentId));
     const fullName = formatName(rawName);
 
@@ -142,7 +139,7 @@ export function parseMasterlistTable(table: string[][]): ParsedMasterlist {
       continue;
     }
     seen.add(key);
-    rows.push({ line, studentId, fullName, program, yearLevel, section });
+    rows.push({ line, studentId, fullName, program, yearLevel });
   }
 
   return { rows, skipped, hasIds: rows.some((r) => r.studentId !== "") };

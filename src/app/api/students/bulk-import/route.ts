@@ -31,12 +31,11 @@ const rowSchema = z.object({
   fullName: z.string().trim().min(1, "Name is required."),
   program: z.string().trim().optional(),
   yearLevel: z.string().trim().optional(),
-  section: z.string().trim().optional(),
 });
 
 const bodySchema = z.object({
   students: z.array(rowSchema).min(1).max(IMPORT_MAX_ROWS_PER_REQUEST),
-  // Re-importing an updated masterlist: refresh name/program/year/section of
+  // Re-importing an updated masterlist: refresh name/program/year of
   // students who already have accounts (their passwords are untouched).
   updateExisting: z.boolean().default(false),
 });
@@ -115,7 +114,6 @@ export async function POST(request: Request) {
           full_name: student.fullName,
           program: student.program || null,
           year_level: student.yearLevel || null,
-          section: student.section || null,
         })
         .eq("id", existingId);
       return updateError
@@ -154,7 +152,6 @@ export async function POST(request: Request) {
       student_id: base.studentId,
       program: student.program || null,
       year_level: student.yearLevel || null,
-      section: student.section || null,
       must_change_password: true,
     });
 

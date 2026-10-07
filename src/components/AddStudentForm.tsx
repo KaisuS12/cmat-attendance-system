@@ -7,7 +7,7 @@ import { PrintSlipsButton } from "@/components/CredentialSlips";
 import { Alert, btnPrimary, btnSecondary, inputClass } from "@/components/ui";
 import type { SlipCredential } from "@/lib/slips";
 
-const EMPTY = { studentId: "", fullName: "", program: "", yearLevel: "", section: "" };
+const EMPTY = { studentId: "", fullName: "", program: "", yearLevel: "" };
 
 // Create one student account without a CSV — for testing, late enrollees,
 // or transferees. Uses the same import endpoint as the masterlist upload.
@@ -64,7 +64,6 @@ export function AddStudentForm() {
         tempPassword: result.tempPassword,
         program: form.program,
         yearLevel: form.yearLevel,
-        section: form.section,
       });
       setForm(EMPTY);
       router.refresh();
@@ -104,18 +103,12 @@ export function AddStudentForm() {
           </label>
           <label className="text-xs font-medium text-slate-500">
             Program
-            <input value={form.program} onChange={set("program")} placeholder="BSIT" className={`${inputClass} mt-1`} />
+            <input value={form.program} onChange={set("program")} placeholder="BSTM" className={`${inputClass} mt-1`} />
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="text-xs font-medium text-slate-500">
-              Year level
-              <input value={form.yearLevel} onChange={set("yearLevel")} placeholder="3" className={`${inputClass} mt-1`} />
-            </label>
-            <label className="text-xs font-medium text-slate-500">
-              Section
-              <input value={form.section} onChange={set("section")} placeholder="A" className={`${inputClass} mt-1`} />
-            </label>
-          </div>
+          <label className="text-xs font-medium text-slate-500">
+            Year level
+            <input value={form.yearLevel} onChange={set("yearLevel")} placeholder="1" className={`${inputClass} mt-1`} />
+          </label>
         </div>
         <p className="text-xs text-slate-400">
           Use the same program and year spelling as the masterlist so event targeting matches.

@@ -92,9 +92,9 @@ export interface SectionStat {
   signedIn: number;
 }
 
-export function sectionLabel(s: Pick<StudentSummary, "program" | "year_level" | "section">): string {
-  const yearSection = [s.year_level, s.section].filter(Boolean).join("-");
-  return [s.program, yearSection].filter(Boolean).join(" ") || "No section";
+// Students are grouped by program + year level, e.g. "BSTM 1".
+export function sectionLabel(s: Pick<StudentSummary, "program" | "year_level">): string {
+  return [s.program, s.year_level].filter(Boolean).join(" ") || "Unassigned";
 }
 
 // Every active student the event is meant for (all students when untargeted).
@@ -111,7 +111,7 @@ export async function loadEligibleStudents(client: SupabaseClient, event: EventT
   return students.filter((s) => s.is_active !== false && isEventForStudent(event, s));
 }
 
-// Expected / missing / per-section figures for one event day.
+// Expected / missing / per-group (program + year) figures for one event day.
 export function dayStats(rows: DayAttendanceRow[], eligible: StudentSummary[]) {
   const signedInIds = new Set(rows.filter((r) => r.signIn).map((r) => r.student.id));
   const completeIds = new Set(rows.filter((r) => r.signIn && r.signOut).map((r) => r.student.id));

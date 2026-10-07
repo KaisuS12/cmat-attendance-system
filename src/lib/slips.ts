@@ -1,6 +1,6 @@
 // Grouping for printable credential slips: one page-group per
-// program / year / section, so slips can be handed to each section's
-// representative in a stack.
+// program + year, so slips can be handed to each class representative
+// in a stack.
 
 export interface SlipCredential {
   studentId: string;
@@ -8,7 +8,6 @@ export interface SlipCredential {
   tempPassword: string;
   program?: string | null;
   yearLevel?: string | null;
-  section?: string | null;
 }
 
 export interface SlipGroup {
@@ -16,9 +15,8 @@ export interface SlipGroup {
   slips: SlipCredential[];
 }
 
-export function slipGroupLabel(c: Pick<SlipCredential, "program" | "yearLevel" | "section">): string {
-  const yearSection = [c.yearLevel, c.section].filter((v) => v && v.trim()).join("-");
-  return [c.program?.trim(), yearSection].filter(Boolean).join(" ") || "Unassigned";
+export function slipGroupLabel(c: Pick<SlipCredential, "program" | "yearLevel">): string {
+  return [c.program?.trim(), c.yearLevel?.trim()].filter(Boolean).join(" ") || "Unassigned";
 }
 
 export function groupSlips(creds: SlipCredential[]): SlipGroup[] {

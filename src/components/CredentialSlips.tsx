@@ -7,7 +7,7 @@ import { btnSecondary } from "@/components/ui";
 import { APP_FULL_NAME } from "@/lib/brand";
 
 // Printable cut-out cards with each student's login details, grouped and
-// page-broken by section. The sheet is rendered into <body> only while
+// page-broken by program and year. The sheet is rendered into <body> only while
 // printing, and the print stylesheet hides everything else (globals.css).
 export function PrintSlipsButton({
   credentials,

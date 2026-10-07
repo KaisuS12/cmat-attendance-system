@@ -64,7 +64,7 @@ function feedback(ok: boolean) {
 }
 
 function describe(s: StudentInfo) {
-  return [s.student_id, s.program, [s.year_level, s.section].filter(Boolean).join("-")].filter(Boolean).join(" · ");
+  return [s.student_id, [s.program, s.year_level].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
 }
 
 export function Scanner({

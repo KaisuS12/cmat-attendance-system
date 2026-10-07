@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { inputClass } from "@/components/ui";
 
 function groupLabel(s: StudentSummary) {
-  return [s.program, [s.year_level, s.section].filter(Boolean).join("-")].filter(Boolean).join(" ");
+  return [s.program, s.year_level].filter(Boolean).join(" ");
 }
 
 function matchesQuery(s: StudentSummary, q: string) {
@@ -28,7 +28,7 @@ interface VoidTarget {
 }
 
 // Per-day attendance detail on the officer event page: who's recorded (with
-// a void action for admins), who's still missing, and a per-section summary.
+// a void action for admins), who's still missing, and a per-program/year summary.
 export function DayAttendanceTable({
   rows,
   missing,
@@ -102,7 +102,7 @@ export function DayAttendanceTable({
   const tabs: { key: Tab; label: string }[] = [
     { key: "attendance", label: `Recorded (${rows.length})` },
     { key: "missing", label: `Missing (${missing.length})` },
-    { key: "sections", label: "By section" },
+    { key: "sections", label: "By program & year" },
   ];
 
   return (
@@ -137,7 +137,7 @@ export function DayAttendanceTable({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, ID, program or section"
+              placeholder="Search name, ID or program"
               className={`${inputClass} mt-3`}
             />
           )}
