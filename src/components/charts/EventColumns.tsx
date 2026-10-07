@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { formatDayDate } from "@/lib/datetime";
-import { AXIS_TEXT, GRID, SERIES_BLUE, SERIES_GOLD } from "@/components/charts/colors";
+import { AXIS_TEXT, GRID, SERIES_BLUE, SERIES_GOLD, SERIES_TEAL } from "@/components/charts/colors";
 
 export interface ColumnDatum {
   key: string;
   title: string;
   date: string;
   signedIn: number;
+  signedOut: number;
   complete: number;
   expected: number;
 }
@@ -24,18 +25,24 @@ function niceMax(v: number) {
   return (n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow;
 }
 
-// Grouped columns per event day: "Signed in" (blue) next to "Completed"
-// (gold, signed in and out). Hovering or focusing a day shows one tooltip
-// with both values.
+// Grouped columns per event day: "Signed in" (blue), "Signed out" (teal)
+// and "Completed" (gold, signed in and out). Hovering or focusing a day
+// shows one tooltip with all three values.
+const SERIES = [
+  { key: "signedIn" as const, color: SERIES_BLUE, onDark: "#9fbcf0", label: "signed in" },
+  { key: "signedOut" as const, color: SERIES_TEAL, onDark: "#8fe0bf", label: "signed out" },
+  { key: "complete" as const, color: SERIES_GOLD, onDark: "#f3d36b", label: "completed" },
+];
+const GAP = 2; // surface gap between bars in a group
 export function EventColumns({ data }: { data: ColumnDatum[] }) {
   const [active, setActive] = useState<number | null>(null);
   if (data.length === 0) return <p className="text-sm text-slate-500">No finished events yet.</p>;
 
-  const max = niceMax(Math.max(1, ...data.map((d) => Math.max(d.signedIn, d.complete))));
+  const max = niceMax(Math.max(1, ...data.map((d) => Math.max(d.signedIn, d.signedOut, d.complete))));
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
   const slot = innerW / data.length;
-  const barW = Math.min(18, (slot - 10) / 2);
+  const barW = Math.min(14, (slot - 12 - GAP * 2) / 3);
   const y = (v: number) => PAD.top + innerH - (v / max) * innerH;
   // Whole-number steps: 0–5 by 1, otherwise five equal steps of a nice max.
   const tickStep = max <= 5 ? 1 : max / 5;
@@ -55,7 +62,7 @@ export function EventColumns({ data }: { data: ColumnDatum[] }) {
 
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Signed in and completed per event day" onMouseLeave={() => setActive(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Signed in, signed out and completed per event day" onMouseLeave={() => setActive(null)}>
         {ticks.map((t) => (
           <g key={t}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} stroke={GRID} />
@@ -67,13 +74,14 @@ export function EventColumns({ data }: { data: ColumnDatum[] }) {
 
         {data.map((d, i) => {
           const cx = PAD.left + slot * i + slot / 2;
-          const x1 = cx - barW - 1; // 2px surface gap between the pair
-          const x2 = cx + 1;
+          const groupW = barW * 3 + GAP * 2;
+          const x0 = cx - groupW / 2;
           return (
             <g key={d.key} opacity={active === null || active === i ? 1 : 0.45}>
               {active === i && <rect x={PAD.left + slot * i} y={PAD.top} width={slot} height={innerH} fill="#f1f5f9" />}
-              <path d={bar(x1, d.signedIn)} fill={SERIES_BLUE} />
-              <path d={bar(x2, d.complete)} fill={SERIES_GOLD} />
+              {SERIES.map((sr, j) => (
+                <path key={sr.key} d={bar(x0 + j * (barW + GAP), d[sr.key])} fill={sr.color} />
+              ))}
               <text x={cx} y={H - 14} textAnchor="middle" fontSize={11} fill={AXIS_TEXT}>
                 {formatDayDate(d.date, "short").replace(/^\w+, /, "")}
               </text>
@@ -84,7 +92,7 @@ export function EventColumns({ data }: { data: ColumnDatum[] }) {
                 height={innerH + 20}
                 fill="transparent"
                 tabIndex={0}
-                aria-label={`${d.title}, ${formatDayDate(d.date, "numeric")}: ${d.signedIn} signed in, ${d.complete} completed of ${d.expected} expected`}
+                aria-label={`${d.title}, ${formatDayDate(d.date, "numeric")}: ${d.signedIn} signed in, ${d.signedOut} signed out, ${d.complete} completed of ${d.expected} expected`}
                 onMouseEnter={() => setActive(i)}
                 onFocus={() => setActive(i)}
                 onBlur={() => setActive(null)}
@@ -103,14 +111,14 @@ export function EventColumns({ data }: { data: ColumnDatum[] }) {
         >
           <p className="font-semibold">{a.title}</p>
           <p className="text-brand-100">{formatDayDate(a.date, "numeric")}</p>
-          <p className="mt-1 flex items-center gap-2">
-            <span className="h-0.5 w-3" style={{ background: "#9fbcf0" }} aria-hidden="true" />
-            <span className="font-bold">{a.signedIn}</span> signed in
-          </p>
-          <p className="flex items-center gap-2">
-            <span className="h-0.5 w-3" style={{ background: "#f3d36b" }} aria-hidden="true" />
-            <span className="font-bold">{a.complete}</span> completed
-          </p>
+          <div className="mt-1">
+            {SERIES.map((sr) => (
+              <p key={sr.key} className="flex items-center gap-2">
+                <span className="h-0.5 w-3" style={{ background: sr.onDark }} aria-hidden="true" />
+                <span className="font-bold">{a[sr.key]}</span> {sr.label}
+              </p>
+            ))}
+          </div>
           <p className="text-brand-100">of {a.expected} expected</p>
         </div>
       )}

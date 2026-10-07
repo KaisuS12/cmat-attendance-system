@@ -69,6 +69,7 @@ describe("computeSemesterAnalytics", () => {
 
   it("counts completed (in and out) per day", () => {
     expect(result.trend.map((t) => t.complete)).toEqual([1, 1]); // Ben never signed out of Assembly
+    expect(result.trend.map((t) => t.signedOut)).toEqual([1, 1]);
     expect(result.trend[0].completeRate).toBeCloseTo(1 / 3);
   });
 

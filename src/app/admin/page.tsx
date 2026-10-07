@@ -9,7 +9,7 @@ import { WaveChart } from "@/components/charts/WaveChart";
 import { EventCalendar } from "@/components/charts/EventCalendar";
 import { GroupBars } from "@/components/charts/GroupBars";
 import { MethodSplit } from "@/components/charts/MethodSplit";
-import { SERIES_BLUE, SERIES_GOLD } from "@/components/charts/colors";
+import { SERIES_BLUE, SERIES_GOLD, SERIES_TEAL } from "@/components/charts/colors";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +92,7 @@ export default async function AdminDashboard() {
           <section className={`${card} md:col-span-2`}>
             <CardHeader
               title="Event attendance"
-              subtitle="Last 8 event days · signed in vs completed (signed in and out)"
+              subtitle="Last 8 event days · signed in, signed out, and completed (both)"
               action={
                 <Link href="/officer" className={goldButton}>
                   All events
@@ -105,6 +105,10 @@ export default async function AdminDashboard() {
                 Signed in
               </span>
               <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: SERIES_TEAL }} aria-hidden="true" />
+                Signed out
+              </span>
+              <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: SERIES_GOLD }} aria-hidden="true" />
                 Completed
               </span>
@@ -115,6 +119,7 @@ export default async function AdminDashboard() {
                 title: t.title,
                 date: t.date,
                 signedIn: t.signedIn,
+                signedOut: t.signedOut,
                 complete: t.complete,
                 expected: t.expected,
               }))}
@@ -128,6 +133,7 @@ export default async function AdminDashboard() {
                       <th className="py-1 font-medium">Event</th>
                       <th className="py-1 font-medium">Day</th>
                       <th className="py-1 text-right font-medium">Signed in</th>
+                      <th className="py-1 text-right font-medium">Signed out</th>
                       <th className="py-1 text-right font-medium">Completed</th>
                       <th className="py-1 text-right font-medium">Expected</th>
                     </tr>
@@ -138,6 +144,7 @@ export default async function AdminDashboard() {
                         <td className="py-0.5">{t.title}</td>
                         <td className="py-0.5">{formatDayDate(t.date, "numeric")}</td>
                         <td className="py-0.5 text-right">{t.signedIn}</td>
+                        <td className="py-0.5 text-right">{t.signedOut}</td>
                         <td className="py-0.5 text-right">{t.complete}</td>
                         <td className="py-0.5 text-right">{t.expected}</td>
                       </tr>
@@ -180,6 +187,7 @@ export default async function AdminDashboard() {
                 title: t.title,
                 date: t.date,
                 rate: t.rate,
+                signedOutRate: t.signedOutRate,
                 completeRate: t.completeRate,
               }))}
             />

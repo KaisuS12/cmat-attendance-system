@@ -162,8 +162,10 @@ export interface TrendPoint {
   date: string;
   expected: number;
   signedIn: number;
+  signedOut: number; // expected students with a sign-out
   complete: number; // expected students with both sign-in and sign-out
   rate: number; // 0–1, signed in / expected
+  signedOutRate: number; // 0–1, signed out / expected
   completeRate: number; // 0–1, complete / expected
 }
 
@@ -262,7 +264,9 @@ export function computeSemesterAnalytics({
       const rows = byDay.get(day.id) ?? [];
       const signedInIds = new Set<string>();
       const completeIds = new Set<string>();
+      const signedOutIds = new Set<string>();
       for (const r of rows) {
+        if (r.signOut) signedOutIds.add(r.student.id);
         if (r.signIn) {
           signedInIds.add(r.student.id);
           if (r.signIn.method === "manual") methods.manual++;
@@ -273,7 +277,9 @@ export function computeSemesterAnalytics({
 
       let daySignedIn = 0;
       let dayComplete = 0;
+      let daySignedOut = 0;
       for (const s of eligible) {
+        if (signedOutIds.has(s.id)) daySignedOut++;
         const inToday = signedInIds.has(s.id);
         if (inToday) daySignedIn++;
         if (completeIds.has(s.id)) dayComplete++;
@@ -293,8 +299,10 @@ export function computeSemesterAnalytics({
         date: day.day_date,
         expected: eligible.length,
         signedIn: daySignedIn,
+        signedOut: daySignedOut,
         complete: dayComplete,
         rate: eligible.length > 0 ? daySignedIn / eligible.length : 0,
+        signedOutRate: eligible.length > 0 ? daySignedOut / eligible.length : 0,
         completeRate: eligible.length > 0 ? dayComplete / eligible.length : 0,
       });
       eventSignedIn += daySignedIn;

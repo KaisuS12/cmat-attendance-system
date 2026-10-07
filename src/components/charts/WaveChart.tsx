@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { formatDayDate } from "@/lib/datetime";
-import { AXIS_TEXT, GRID, SERIES_BLUE, SERIES_GOLD } from "@/components/charts/colors";
+import { AXIS_TEXT, GRID, SERIES_BLUE, SERIES_GOLD, SERIES_TEAL } from "@/components/charts/colors";
 
 export interface WaveDatum {
   key: string;
   title: string;
   date: string;
   rate: number; // signed in / expected
+  signedOutRate: number; // signed out / expected
   completeRate: number; // completed / expected
 }
 
@@ -55,8 +56,8 @@ function smooth(pts: Pt[]): string {
 
 const pct = (r: number) => `${Math.round(r * 100)}%`;
 
-// Attendance trend as layered waves: sign-in rate behind, completion rate in
-// front. The crosshair snaps to the nearest day and one tooltip lists both.
+// Attendance trend as layered waves: sign-in rate at the back, then the
+// sign-out rate, then the completion rate in front. The crosshair snaps to the nearest day and one tooltip lists both.
 export function WaveChart({ data }: { data: WaveDatum[] }) {
   const [active, setActive] = useState<number | null>(null);
   if (data.length === 0) return <p className="text-sm text-slate-500">No finished events yet.</p>;
@@ -69,10 +70,11 @@ export function WaveChart({ data }: { data: WaveDatum[] }) {
   const base = y(0);
 
   // Solid light tints (not transparency) so the layered areas never blend
-  // into a muddy mix; "completed" is always within "signed in", so it sits in
-  // front.
+  // into a muddy mix; "completed" is never above either of the others, so it
+  // sits in front.
   const series = [
     { key: "rate" as const, color: SERIES_BLUE, tint: "#dbe5f7", label: "Signed in" },
+    { key: "signedOutRate" as const, color: SERIES_TEAL, tint: "#cdeee0", label: "Signed out" },
     { key: "completeRate" as const, color: SERIES_GOLD, tint: "#f3e3ad", label: "Completed" },
   ];
 
@@ -100,7 +102,7 @@ export function WaveChart({ data }: { data: WaveDatum[] }) {
           </span>
         ))}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Attendance trend: sign-in rate and completion rate per event day" onMouseLeave={() => setActive(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Attendance trend: sign-in, sign-out and completion rates per event day" onMouseLeave={() => setActive(null)}>
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
           <g key={t}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} stroke={GRID} />
@@ -146,7 +148,7 @@ export function WaveChart({ data }: { data: WaveDatum[] }) {
               height={innerH}
               fill="transparent"
               tabIndex={0}
-              aria-label={`${d.title}, ${formatDayDate(d.date, "numeric")}: ${pct(d.rate)} signed in, ${pct(d.completeRate)} completed`}
+              aria-label={`${d.title}, ${formatDayDate(d.date, "numeric")}: ${pct(d.rate)} signed in, ${pct(d.signedOutRate)} signed out, ${pct(d.completeRate)} completed`}
               onMouseEnter={() => setActive(i)}
               onFocus={() => setActive(i)}
               onBlur={() => setActive(null)}
