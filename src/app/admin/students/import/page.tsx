@@ -91,8 +91,14 @@ export default function ImportStudentsPage() {
             updateExisting,
           }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !Array.isArray(data.results)) {
+          throw new Error(
+            res.status === 401 || res.status === 403
+              ? "You were logged out. Log in again as an admin, then import the same file."
+              : (data.error ?? `The server didn't answer properly (error ${res.status}).`)
+          );
+        }
         // Results come back in row order; keep program/year for the slips.
         all.push(
           ...(data.results as ImportResult[]).map((r, j) => ({
@@ -105,9 +111,12 @@ export default function ImportStudentsPage() {
       } catch (err) {
         // Keep going: mark this chunk failed so it can be retried by re-importing
         // (already-created students are skipped as "exists").
-        const message = err instanceof Error ? err.message : "Network error";
+        const message =
+          err instanceof TypeError ? "Lost connection to the server." : err instanceof Error ? err.message : "Network error";
         all.push(...chunk.map((r) => ({ studentId: r.studentId, fullName: r.fullName, status: "failed" as const, error: message })));
-        setRunError("Some rows failed. Download the report, fix the problem, and import the same file again — existing students are skipped.");
+        setRunError(
+          `${message} Some of these students may have been created anyway — import the same file again: anyone already created shows as “already existed”, and nobody is duplicated.`
+        );
       }
       setDone(Math.min(i + IMPORT_CHUNK_SIZE, rows.length));
     }
