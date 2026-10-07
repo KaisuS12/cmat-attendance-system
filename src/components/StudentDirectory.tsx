@@ -2,7 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccountActions } from "@/components/AccountActions";
 import { TempPasswordReveal } from "@/components/TempPasswordReveal";
-import { Badge, btnSecondary, EmptyState, inputClass } from "@/components/ui";
+import { LiveSearch } from "@/components/LiveSearch";
+import { Badge, btnSecondary, EmptyState } from "@/components/ui";
 import type { Profile } from "@/types/database";
 
 const PAGE_SIZE = 50;
@@ -34,7 +35,9 @@ export async function StudentDirectory({
 
   // Strip characters that have meaning inside a PostgREST or() filter.
   const term = q.replace(/[,()*%\\:"]/g, " ").trim();
-  if (term) query = query.or(`student_id.ilike.%${term}%,full_name.ilike.%${term}%,section.ilike.%${term}%`);
+  if (term) query = query.or(
+      `student_id.ilike.%${term}%,full_name.ilike.%${term}%,program.ilike.%${term}%,section.ilike.%${term}%`
+    );
 
   const { data, count } = await query;
   const students = (data ?? []) as Profile[];
@@ -62,18 +65,7 @@ export async function StudentDirectory({
         {count ?? 0} {q ? "matching" : "total"}
       </p>
 
-      <form className="mt-3 flex gap-2" action={basePath}>
-        <input
-          name="q"
-          type="search"
-          defaultValue={q}
-          placeholder="Search by student ID, name or section"
-          className={inputClass}
-        />
-        <button type="submit" className={btnSecondary}>
-          Search
-        </button>
-      </form>
+      <LiveSearch initialQuery={q} placeholder="Search by name, student ID, program or section" />
 
       <div className="mt-4">
         {students.length === 0 ? (
