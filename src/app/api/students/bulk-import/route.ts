@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  generatedIdPrefix,
   IMPORT_MAX_ROWS_PER_REQUEST,
   isValidStudentId,
   normalizeStudentId,
@@ -12,6 +13,7 @@ import { generateTempPassword } from "@/lib/passwords";
 import { logAudit } from "@/lib/audit";
 import { rememberTempPassword } from "@/lib/temp-passwords";
 import { parseJsonBody } from "@/lib/validation";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 // Bulk-creates student accounts from the CMAT masterlist (§9). Only usable
 // once written permission to use the masterlist has been secured — this
@@ -20,10 +22,12 @@ import { parseJsonBody } from "@/lib/validation";
 const CONCURRENCY = 5;
 
 const rowSchema = z.object({
+  // Blank = the masterlist has no IDs; one is generated (NAM26-0001, …).
   studentId: z
     .string()
+    .default("")
     .transform(normalizeStudentId)
-    .refine(isValidStudentId, "Student ID format is not recognized."),
+    .refine((id) => id === "" || isValidStudentId(id), "Student ID format is not recognized."),
   fullName: z.string().trim().min(1, "Name is required."),
   program: z.string().trim().optional(),
   yearLevel: z.string().trim().optional(),
@@ -38,6 +42,8 @@ const bodySchema = z.object({
 });
 
 type Row = z.infer<typeof rowSchema>;
+const GENERATED_ID_DIGITS = 4;
+const MAX_ID_ATTEMPTS = 5;
 type Result = {
   studentId: string;
   fullName: string;
@@ -56,16 +62,51 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const actorId = profile.id;
 
-  // Skip IDs that already have an account, so re-running an import (or
-  // importing an updated masterlist) is safe.
-  const ids = body.data.students.map((s) => s.studentId);
-  const { data: existing } = await admin.from("profiles").select("id, student_id").in("student_id", ids);
-  const existingByStudentId = new Map((existing ?? []).map((e) => [e.student_id as string, e.id as string]));
+  // Skip students that already have an account, so re-running an import (or
+  // importing an updated masterlist) is safe. Rows with an ID match by ID;
+  // rows without one match by name + program + year level.
   const { updateExisting } = body.data;
+  const ids = body.data.students.map((s) => s.studentId).filter(Boolean);
+  const unnamed = body.data.students.filter((s) => !s.studentId);
+  const existingByStudentId = new Map<string, { id: string; studentId: string }>();
+  if (ids.length) {
+    const { data } = await admin.from("profiles").select("id, student_id").in("student_id", ids);
+    for (const e of data ?? []) existingByStudentId.set(e.student_id as string, { id: e.id, studentId: e.student_id });
+  }
+  const nameKey = (name: string, program?: string | null, year?: string | null) =>
+    `${name.trim().toLowerCase()}|${(program ?? "").trim().toUpperCase()}|${(year ?? "").trim()}`;
+  const existingByName = new Map<string, { id: string; studentId: string }>();
+  if (unnamed.length) {
+    const { data } = await admin
+      .from("profiles")
+      .select("id, student_id, full_name, program, year_level")
+      .eq("role", "student")
+      .in("full_name", unnamed.map((s) => s.fullName));
+    for (const e of data ?? []) {
+      existingByName.set(nameKey(e.full_name, e.program, e.year_level), { id: e.id, studentId: e.student_id ?? "" });
+    }
+  }
+
+  // Next free generated number for this year, e.g. NAM26-0042 → 43.
+  const prefix = generatedIdPrefix();
+  let nextSeq = 1;
+  if (unnamed.length) {
+    const taken = await fetchAll<{ student_id: string | null }>((from, to) =>
+      admin.from("profiles").select("student_id").like("student_id", `${prefix}%`).order("student_id").range(from, to)
+    );
+    for (const t of taken) {
+      const n = Number((t.student_id ?? "").slice(prefix.length));
+      if (Number.isInteger(n) && n >= nextSeq) nextSeq = n + 1;
+    }
+  }
+  const takeId = () => `${prefix}${String(nextSeq++).padStart(GENERATED_ID_DIGITS, "0")}`;
 
   async function importOne(student: Row): Promise<Result> {
-    const base = { studentId: student.studentId, fullName: student.fullName };
-    const existingId = existingByStudentId.get(student.studentId);
+    const match = student.studentId
+      ? existingByStudentId.get(student.studentId)
+      : existingByName.get(nameKey(student.fullName, student.program, student.yearLevel));
+    const base = { studentId: match?.studentId || student.studentId, fullName: student.fullName };
+    const existingId = match?.id;
     if (existingId) {
       if (!updateExisting) return { ...base, status: "exists" };
       const { error: updateError } = await admin
@@ -83,24 +124,34 @@ export async function POST(request: Request) {
     }
 
     const tempPassword = generateTempPassword();
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email: studentIdToEmail(student.studentId),
-      password: tempPassword,
-      email_confirm: true,
-    });
-
-    if (createError || !created.user) {
+    const generated = !student.studentId;
+    let created: { user: { id: string } | null } = { user: null };
+    for (let attempt = 0; attempt < (generated ? MAX_ID_ATTEMPTS : 1); attempt++) {
+      if (generated) base.studentId = takeId();
+      const { data, error: createError } = await admin.auth.admin.createUser({
+        email: studentIdToEmail(base.studentId),
+        password: tempPassword,
+        email_confirm: true,
+      });
+      if (!createError && data.user) {
+        created = data;
+        break;
+      }
       const exists = createError?.code === "email_exists";
+      // A generated number already in use (another import running at the
+      // same time): move on to the next one.
+      if (exists && generated) continue;
       return exists
         ? { ...base, status: "exists" }
         : { ...base, status: "failed", error: createError?.message ?? "Could not create account." };
     }
+    if (!created.user) return { ...base, status: "failed", error: "Could not assign a student ID — import again." };
 
     const { error: profileError } = await admin.from("profiles").insert({
       id: created.user.id,
       role: "student",
       full_name: student.fullName,
-      student_id: student.studentId,
+      student_id: base.studentId,
       program: student.program || null,
       year_level: student.yearLevel || null,
       section: student.section || null,

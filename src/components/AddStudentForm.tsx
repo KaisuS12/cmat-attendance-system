@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { isValidStudentId, normalizeStudentId, STUDENT_ID_PATTERN } from "@/lib/constants";
+import { generatedIdPrefix, isValidStudentId, normalizeStudentId, STUDENT_ID_PATTERN } from "@/lib/constants";
 import { PrintSlipsButton } from "@/components/CredentialSlips";
 import { Alert, btnPrimary, btnSecondary, inputClass } from "@/components/ui";
 import type { SlipCredential } from "@/lib/slips";
@@ -28,7 +28,7 @@ export function AddStudentForm() {
     setCreated(null);
 
     const studentId = normalizeStudentId(form.studentId);
-    if (!isValidStudentId(studentId)) {
+    if (studentId && !isValidStudentId(studentId)) {
       setError(`Student ID should match the format ${STUDENT_ID_PATTERN.source} (e.g. 21-00123).`);
       return;
     }
@@ -47,7 +47,11 @@ export function AddStudentForm() {
       }
       const result = data.results?.[0];
       if (result?.status === "exists") {
-        setError("A student with this ID already has an account. Search for them below to reset their password.");
+        setError(
+          studentId
+            ? "A student with this ID already has an account. Search for them below to reset their password."
+            : `${form.fullName.trim()} (${[form.program, form.yearLevel].filter(Boolean).join(" ")}) already has an account (${result.studentId}). Search for them below to reset their password.`
+        );
         return;
       }
       if (result?.status !== "created") {
@@ -55,7 +59,7 @@ export function AddStudentForm() {
         return;
       }
       setCreated({
-        studentId,
+        studentId: result.studentId,
         fullName: form.fullName.trim(),
         tempPassword: result.tempPassword,
         program: form.program,
@@ -85,12 +89,11 @@ export function AddStudentForm() {
         <h2 className="text-sm font-semibold text-brand-800">Add a student</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-medium text-slate-500">
-            Student ID
+            Student ID <span className="font-normal text-slate-400">(blank = auto)</span>
             <input
-              required
               value={form.studentId}
               onChange={set("studentId")}
-              placeholder="21-00123"
+              placeholder={`e.g. 21-00123 or leave blank for ${generatedIdPrefix()}…`}
               autoCapitalize="none"
               className={`${inputClass} mt-1`}
             />

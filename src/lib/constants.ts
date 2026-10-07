@@ -8,8 +8,19 @@ export function studentIdToEmail(studentId: string): string {
   return `${normalizeStudentId(studentId).toLowerCase()}@${STUDENT_EMAIL_DOMAIN}`;
 }
 
+// IDs the system generates for students whose masterlist has no school ID
+// number: "NAM" + two-digit year + a sequence number, e.g. NAM26-0001. They
+// can never clash with a real school ID and are printed on credential slips.
+export const GENERATED_ID_PATTERN = /^NAM\d{2}-\d{4,6}$/;
+
+export function generatedIdPrefix(date: Date = new Date()): string {
+  return `NAM${String(date.getFullYear()).slice(-2)}-`;
+}
+
 export function normalizeStudentId(studentId: string): string {
-  return studentId.trim();
+  const id = studentId.trim();
+  // Generated IDs are stored in capitals; typing "nam26-0001" still works.
+  return /^nam\d{2}-\d+$/i.test(id) ? id.toUpperCase() : id;
 }
 
 // Format enforced on masterlist import (design doc §10.1 is still open, so
@@ -19,7 +30,8 @@ export const STUDENT_ID_PATTERN = new RegExp(
 );
 
 export function isValidStudentId(studentId: string): boolean {
-  return STUDENT_ID_PATTERN.test(normalizeStudentId(studentId));
+  const id = normalizeStudentId(studentId);
+  return STUDENT_ID_PATTERN.test(id) || GENERATED_ID_PATTERN.test(id);
 }
 
 export const MIN_PASSWORD_LENGTH = 8;

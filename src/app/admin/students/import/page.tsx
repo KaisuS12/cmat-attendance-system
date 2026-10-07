@@ -3,24 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { parseCsv, toCsv } from "@/lib/csv";
-import { IMPORT_CHUNK_SIZE, isValidStudentId, normalizeStudentId, STUDENT_ID_PATTERN } from "@/lib/constants";
+import { generatedIdPrefix, IMPORT_CHUNK_SIZE } from "@/lib/constants";
+import { parseMasterlistTable, type MasterlistIssue, type MasterlistRow } from "@/lib/masterlist";
 import { PrintSlipsButton } from "@/components/CredentialSlips";
 import { Alert, btnPrimary, btnSecondary, cardClass, PageTitle } from "@/components/ui";
-
-interface Row {
-  line: number;
-  studentId: string;
-  fullName: string;
-  program: string;
-  yearLevel: string;
-  section: string;
-}
-
-interface Invalid {
-  line: number;
-  studentId: string;
-  reason: string;
-}
 
 interface ImportResult {
   studentId: string;
@@ -28,16 +14,20 @@ interface ImportResult {
   status: "created" | "updated" | "exists" | "failed";
   tempPassword?: string;
   error?: string;
+  program?: string;
+  yearLevel?: string;
+  section?: string;
 }
 
-// Accepts common header spellings from registrar exports.
-const HEADER_ALIASES: Record<keyof Omit<Row, "line">, string[]> = {
-  studentId: ["student_id", "studentid", "student id", "id number", "id no", "id", "student no", "student number"],
-  fullName: ["full_name", "fullname", "full name", "name", "student name"],
-  program: ["program", "course"],
-  yearLevel: ["year_level", "yearlevel", "year level", "year"],
-  section: ["section", "sec"],
-};
+// Excel files are read in the browser; SheetJS is only downloaded when one
+// is picked. Every cell comes back as the text Excel shows.
+async function readTable(file: File): Promise<string[][]> {
+  if (/\.csv$/i.test(file.name) || file.type === "text/csv") return parseCsv(await file.text());
+  const XLSX = await import("xlsx");
+  const book = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  const sheet = book.Sheets[book.SheetNames[0]];
+  return XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: "", blankrows: true });
+}
 
 function download(filename: string, rows: (string | number | null | undefined)[][]) {
   const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" });
@@ -49,54 +39,10 @@ function download(filename: string, rows: (string | number | null | undefined)[]
   URL.revokeObjectURL(url);
 }
 
-function parseMasterlist(text: string): { rows: Row[]; invalid: Invalid[]; error?: string } {
-  const table = parseCsv(text);
-  if (table.length < 2) return { rows: [], invalid: [], error: "The file has no data rows." };
-
-  const header = table[0].map((h) => h.trim().toLowerCase());
-  const col = {} as Record<keyof typeof HEADER_ALIASES, number>;
-  for (const [key, aliases] of Object.entries(HEADER_ALIASES) as [keyof typeof HEADER_ALIASES, string[]][]) {
-    col[key] = header.findIndex((h) => aliases.includes(h));
-  }
-  if (col.studentId < 0 || col.fullName < 0) {
-    return {
-      rows: [],
-      invalid: [],
-      error: "The first row must be a header with at least “student_id” and “full_name” columns.",
-    };
-  }
-
-  const rows: Row[] = [];
-  const invalid: Invalid[] = [];
-  const seen = new Set<string>();
-  const cell = (r: string[], i: number) => (i >= 0 ? (r[i] ?? "").trim() : "");
-
-  table.slice(1).forEach((r, idx) => {
-    const line = idx + 2;
-    const studentId = normalizeStudentId(cell(r, col.studentId));
-    const fullName = cell(r, col.fullName).replace(/\s+/g, " ");
-    if (!studentId) return invalid.push({ line, studentId, reason: "Missing student ID" });
-    if (!isValidStudentId(studentId)) return invalid.push({ line, studentId, reason: "Unrecognized ID format" });
-    if (!fullName) return invalid.push({ line, studentId, reason: "Missing name" });
-    if (seen.has(studentId.toLowerCase())) return invalid.push({ line, studentId, reason: "Duplicate in file" });
-    seen.add(studentId.toLowerCase());
-    rows.push({
-      line,
-      studentId,
-      fullName,
-      program: cell(r, col.program),
-      yearLevel: cell(r, col.yearLevel),
-      section: cell(r, col.section),
-    });
-  });
-
-  return { rows, invalid };
-}
-
 export default function ImportStudentsPage() {
   const [fileName, setFileName] = useState<string | null>(null);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [invalid, setInvalid] = useState<Invalid[]>([]);
+  const [rows, setRows] = useState<MasterlistRow[]>([]);
+  const [invalid, setInvalid] = useState<MasterlistIssue[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [permission, setPermission] = useState(false);
   const [updateExisting, setUpdateExisting] = useState(false);
@@ -110,9 +56,15 @@ export default function ImportStudentsPage() {
     setRunError(null);
     if (!file) return;
     setFileName(file.name);
-    const parsed = parseMasterlist(await file.text());
+    let parsed;
+    try {
+      parsed = parseMasterlistTable(await readTable(file));
+    } catch {
+      parsed = { rows: [], skipped: [], hasIds: false, error: "Couldn't read this file. Save it as .xlsx or .csv and try again." };
+    }
+    if (!parsed.error && parsed.rows.length === 0) parsed.error = "No students found below the header row.";
     setRows(parsed.rows);
-    setInvalid(parsed.invalid);
+    setInvalid(parsed.skipped);
     setParseError(parsed.error ?? null);
   }
 
@@ -141,7 +93,15 @@ export default function ImportStudentsPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-        all.push(...data.results);
+        // Results come back in row order; keep program/year for the slips.
+        all.push(
+          ...(data.results as ImportResult[]).map((r, j) => ({
+            ...r,
+            program: chunk[j]?.program,
+            yearLevel: chunk[j]?.yearLevel,
+            section: chunk[j]?.section,
+          }))
+        );
       } catch (err) {
         // Keep going: mark this chunk failed so it can be retried by re-importing
         // (already-created students are skipped as "exists").
@@ -167,24 +127,27 @@ export default function ImportStudentsPage() {
         ← Students
       </Link>
       <div className="mt-2">
-        <PageTitle title="Import masterlist" subtitle="Create student accounts from a CSV file." />
+        <PageTitle title="Import masterlist" subtitle="Create student accounts from the Excel masterlist." />
       </div>
 
       <div className={`${cardClass} mt-6 space-y-3 text-sm text-slate-600`}>
         <p>
-          Save the masterlist as <strong>CSV</strong> (in Excel: File → Save As → CSV UTF-8). The first row must be a
-          header. Required columns: <code>student_id</code>, <code>full_name</code>. Optional: <code>program</code>,{" "}
-          <code>year_level</code>, <code>section</code>.
+          Upload the masterlist as it is — <strong>Excel (.xlsx / .xls)</strong> or CSV. Title rows at the top and
+          &ldquo;Male&rdquo; / &ldquo;Female&rdquo; rows are skipped automatically. Only two columns are needed:{" "}
+          <strong>Student Name</strong> and <strong>Course</strong> (e.g. &ldquo;BSTM 1&rdquo; becomes program BSTM, year
+          1). Section is optional.
         </p>
         <p>
-          Student IDs must match <code>{STUDENT_ID_PATTERN.source}</code>. Students already in the system are skipped,
-          so it&apos;s safe to import an updated list.
+          No student ID column? Each student gets one automatically (<code>{generatedIdPrefix()}0001</code>,{" "}
+          <code>{generatedIdPrefix()}0002</code>, …) — it&apos;s printed on their slip and is what they log in with.
+          Students already in the system are skipped (matched by name, program and year), so it&apos;s safe to upload
+          the same or an updated list again.
         </p>
         <button
           onClick={() =>
             download("masterlist-template.csv", [
-              ["student_id", "full_name", "program", "year_level", "section"],
-              ["21-00123", "Juan Dela Cruz", "BSIT", "3", "A"],
+              ["Student Name", "Course"],
+              ["DELA CRUZ, JUAN SANTOS", "BSTM 1"],
             ])
           }
           className="text-sm font-medium text-slate-700 underline"
@@ -196,10 +159,10 @@ export default function ImportStudentsPage() {
       {!results && (
         <div className={`${cardClass} mt-4 space-y-4`}>
           <label className="block">
-            <span className="text-sm font-medium text-slate-700">CSV file</span>
+            <span className="text-sm font-medium text-slate-700">Masterlist file</span>
             <input
               type="file"
-              accept=".csv,text/csv"
+              accept=".xlsx,.xls,.csv"
               disabled={running}
               onChange={(e) => handleFile(e.target.files?.[0])}
               className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-brand-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
@@ -229,7 +192,7 @@ export default function ImportStudentsPage() {
                   <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-slate-600">
                     {invalid.map((r) => (
                       <li key={r.line}>
-                        Line {r.line}: {r.studentId || "(blank)"} — {r.reason}
+                        Row {r.line}: {r.text} — {r.reason}
                       </li>
                     ))}
                   </ul>
@@ -244,13 +207,17 @@ export default function ImportStudentsPage() {
                         <th className="px-3 py-2">ID</th>
                         <th className="px-3 py-2">Name</th>
                         <th className="px-3 py-2">Program</th>
-                        <th className="px-3 py-2">Yr/Sec</th>
+                        <th className="px-3 py-2">Year</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {rows.slice(0, 5).map((r) => (
                         <tr key={r.line}>
-                          <td className="px-3 py-1.5">{r.studentId}</td>
+                          <td className="px-3 py-1.5">
+                            {r.studentId || (
+                              <span className="rounded bg-gold-100 px-1.5 py-0.5 text-xs font-medium text-gold-600">Auto</span>
+                            )}
+                          </td>
                           <td className="px-3 py-1.5">{r.fullName}</td>
                           <td className="px-3 py-1.5">{r.program}</td>
                           <td className="px-3 py-1.5">{[r.yearLevel, r.section].filter(Boolean).join("-")}</td>
@@ -273,7 +240,7 @@ export default function ImportStudentsPage() {
                   onChange={(e) => setUpdateExisting(e.target.checked)}
                   className="mt-0.5 h-4 w-4"
                 />
-                Update name, program, year and section for students already in the system (their passwords
+                Update name, program and year for students already in the system (their passwords
                 aren&apos;t changed).
               </label>
 
@@ -350,8 +317,8 @@ export default function ImportStudentsPage() {
               <button
                 onClick={() =>
                   download("student-credentials.csv", [
-                    ["student_id", "full_name", "temporary_password"],
-                    ...created.map((r) => [r.studentId, r.fullName, r.tempPassword]),
+                    ["student_id", "full_name", "program", "year_level", "temporary_password"],
+                    ...created.map((r) => [r.studentId, r.fullName, r.program, r.yearLevel, r.tempPassword]),
                   ])
                 }
                 className={btnPrimary}
@@ -362,17 +329,14 @@ export default function ImportStudentsPage() {
             {created.length > 0 && (
               <PrintSlipsButton
                 label={`Print slips (${created.length})`}
-                credentials={created.map((r) => {
-                  const row = rows.find((x) => x.studentId === r.studentId);
-                  return {
-                    studentId: r.studentId,
-                    fullName: r.fullName,
-                    tempPassword: r.tempPassword ?? "",
-                    program: row?.program,
-                    yearLevel: row?.yearLevel,
-                    section: row?.section,
-                  };
-                })}
+                credentials={created.map((r) => ({
+                  studentId: r.studentId,
+                  fullName: r.fullName,
+                  tempPassword: r.tempPassword ?? "",
+                  program: r.program,
+                  yearLevel: r.yearLevel,
+                  section: r.section,
+                }))}
               />
             )}
             <button
@@ -380,7 +344,7 @@ export default function ImportStudentsPage() {
                 download("import-report.csv", [
                   ["student_id", "full_name", "status", "error"],
                   ...results.map((r) => [r.studentId, r.fullName, r.status, r.error ?? ""]),
-                  ...invalid.map((r) => [r.studentId, "", "skipped", `Line ${r.line}: ${r.reason}`]),
+                  ...invalid.map((r) => ["", r.text, "skipped", `Row ${r.line}: ${r.reason}`]),
                 ])
               }
               className={btnSecondary}
