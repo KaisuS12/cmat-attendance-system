@@ -53,7 +53,7 @@ export default async function AdminDashboard() {
     { href: "/officer", label: "Events", desc: "Create events, open the scanner, export attendance" },
     { href: "/admin/students", label: "Students", desc: "Search students, view records, reset passwords" },
     { href: "/admin/students/import", label: "Import masterlist", desc: "Create student accounts from a CSV" },
-    { href: "/admin/officers", label: "Officer accounts", desc: "Add, reset or deactivate officers" },
+    { href: "/admin/officers", label: "Officers & admins", desc: "Add officers or admins, change roles, reset passwords" },
     { href: "/admin/semesters", label: "Semesters", desc: "Set the active semester, export clearance sheets" },
     { href: "/admin/audit-log", label: "Audit log", desc: "Who did what, and when" },
   ];

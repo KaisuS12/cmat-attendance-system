@@ -10,7 +10,7 @@ export const NAV: Record<Profile["role"], NavItem[]> = {
     { href: "/admin", label: "Dashboard", exact: true },
     { href: "/officer", label: "Events", exact: true, also: ["/officer/events", "/officer/scan"] },
     { href: "/admin/students", label: "Students" },
-    { href: "/admin/officers", label: "Officers" },
+    { href: "/admin/officers", label: "Staff" },
     { href: "/admin/semesters", label: "Semesters" },
     { href: "/admin/audit-log", label: "Audit log" },
   ],
