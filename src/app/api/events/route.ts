@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
-import { daySchema } from "@/lib/schemas";
+import { daySchema, venueSchema } from "@/lib/schemas";
+import { saveVenue } from "@/lib/venues-server";
 import { cleanTargets } from "@/lib/eligibility";
 import { parseJsonBody } from "@/lib/validation";
 
@@ -20,16 +21,6 @@ export async function GET() {
   if (queryError) return NextResponse.json({ error: queryError.message }, { status: 500 });
   return NextResponse.json({ events: data });
 }
-
-const venueSchema = z.union([
-  z.object({ venueId: z.uuid() }),
-  z.object({
-    name: z.string().trim().min(1, "Venue name is required."),
-    latitude: z.number().min(-90).max(90),
-    longitude: z.number().min(-180).max(180),
-    radiusMeters: z.number().int().min(20, "Radius must be at least 20 m.").max(2000).default(150),
-  }),
-]);
 
 const bodySchema = z
   .object({
@@ -66,12 +57,22 @@ export async function POST(request: Request) {
     semesterId = active?.id ?? null;
   }
 
+  // Days with their own venue: a new venue picked on the map is saved first.
+  const dayPayloads = [];
+  for (const { venue: dayVenue, title: dayTitle, ...windows } of days) {
+    const venueId = dayVenue ? await saveVenue(admin, dayVenue) : null;
+    if (dayVenue && !venueId) {
+      return NextResponse.json({ error: "Could not save a day's venue." }, { status: 500 });
+    }
+    dayPayloads.push({ ...windows, title: dayTitle || null, venueId });
+  }
+
   const { data: eventId, error: rpcError } = await admin.rpc("create_event", {
     p_title: title,
     p_description: description || null,
     p_semester_id: semesterId,
     p_venue: venue,
-    p_days: days,
+    p_days: dayPayloads,
     p_actor: profile.id,
     p_target_programs: targetPrograms,
     p_target_year_levels: targetYearLevels,

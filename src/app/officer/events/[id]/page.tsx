@@ -17,7 +17,8 @@ import type { EventDay, EventRecord, Venue } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-type EventWithDays = EventRecord & { venues: Venue; event_days: EventDay[] };
+type DayWithVenue = EventDay & { day_venue: Venue | null };
+type EventWithDays = EventRecord & { venues: Venue; event_days: DayWithVenue[] };
 
 function percent(rate: number | null) {
   return rate === null ? "—" : `${Math.round(rate * 100)}%`;
@@ -40,7 +41,7 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
 
   const { data: event } = await supabase
     .from("events")
-    .select("*, venues(*), event_days(*)")
+    .select("*, venues(*), event_days(*, day_venue:venues(*))")
     .eq("id", id)
     .single<EventWithDays>();
 
@@ -97,8 +98,11 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
           return (
             <section key={day.id} className="rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="font-semibold text-slate-900">{formatDayDate(day.day_date, "long")}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-semibold text-slate-900">
+                    {day.title && <span className="text-brand-800">{day.title} · </span>}
+                    {formatDayDate(day.day_date, "long")}
+                  </h2>
                   {live ? (
                     <Badge tone="green">Live</Badge>
                   ) : day.day_date === today ? (
@@ -109,6 +113,13 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
                   Open scanner
                 </Link>
               </div>
+
+              {day.day_venue && (
+                <p className="mt-1 text-sm text-slate-600">
+                  📍 {day.day_venue.name} · {day.day_venue.radius_meters} m radius
+                  <span className="text-xs text-slate-400"> (this day only)</span>
+                </p>
+              )}
 
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                 <div className="rounded-lg bg-slate-50 p-3">

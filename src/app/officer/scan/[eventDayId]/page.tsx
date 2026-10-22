@@ -22,9 +22,9 @@ export default async function ScannerPage({ params }: PageProps<"/officer/scan/[
   const [{ data: day }, { count: signIns }, { count: signOuts }] = await Promise.all([
     supabase
       .from("event_days")
-      .select("*, events(id, title, venues(name))")
+      .select("*, day_venue:venues(name), events(id, title, venues(name))")
       .eq("id", eventDayId)
-      .single<EventDay & { events: { id: string; title: string; venues: { name: string } } }>(),
+      .single<EventDay & { day_venue: { name: string } | null; events: { id: string; title: string; venues: { name: string } } }>(),
     countFor("sign_in"),
     countFor("sign_out"),
   ]);
@@ -35,8 +35,8 @@ export default async function ScannerPage({ params }: PageProps<"/officer/scan/[
     <Scanner
       day={day}
       eventId={day.events.id}
-      eventTitle={day.events.title}
-      venueName={day.events.venues.name}
+      eventTitle={day.title ? `${day.events.title} · ${day.title}` : day.events.title}
+      venueName={day.day_venue?.name ?? day.events.venues.name}
       initialCounts={{ sign_in: signIns ?? 0, sign_out: signOuts ?? 0 }}
       debugTools={ENABLE_TOKEN_DEBUG_TOOLS}
     />

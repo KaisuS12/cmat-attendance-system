@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
 import { daySchema } from "@/lib/schemas";
 import { parseJsonBody } from "@/lib/validation";
+import { saveVenue } from "@/lib/venues-server";
 
 // Adds another day to an existing (multi-day) event.
 export async function POST(request: Request, { params }: RouteContext<"/api/events/[id]/days">) {
@@ -16,6 +17,10 @@ export async function POST(request: Request, { params }: RouteContext<"/api/even
   const day = body.data;
 
   const admin = createAdminClient();
+  const venueId = day.venue ? await saveVenue(admin, day.venue) : null;
+  if (day.venue && !venueId) {
+    return NextResponse.json({ error: "Could not save the day's venue." }, { status: 500 });
+  }
   const { data, error: insertError } = await admin
     .from("event_days")
     .insert({
@@ -25,6 +30,8 @@ export async function POST(request: Request, { params }: RouteContext<"/api/even
       sign_in_end: day.signInEnd,
       sign_out_start: day.signOutStart,
       sign_out_end: day.signOutEnd,
+      title: day.title || null,
+      venue_id: venueId,
     })
     .select("*")
     .single();

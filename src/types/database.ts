@@ -56,6 +56,8 @@ export interface EventDay {
   sign_in_end: string;
   sign_out_start: string;
   sign_out_end: string;
+  title: string | null; // optional name for the day, e.g. "Field Day"
+  venue_id: string | null; // null = the event's venue
   created_at: string;
   updated_at: string;
 }

@@ -45,9 +45,9 @@ export async function POST(request: Request) {
       .gte("created_at", new Date(now.getTime() - 60_000).toISOString()),
     admin
       .from("event_days")
-      .select("*, events!inner(venue_id, target_programs, target_year_levels, venues!inner(*))")
+      .select("*, day_venue:venues(*), events!inner(venue_id, target_programs, target_year_levels, venues!inner(*))")
       .eq("id", eventDayId)
-      .single<EventDay & { events: EventTargets & { venue_id: string; venues: Venue } }>(),
+      .single<EventDay & { day_venue: Venue | null; events: EventTargets & { venue_id: string; venues: Venue } }>(),
     admin
       .from("attendance_records")
       .select("id")
@@ -80,7 +80,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const venue = eventDay.events.venues;
+  // A day with its own venue is checked against that place.
+  const venue = eventDay.day_venue ?? eventDay.events.venues;
   const windowStart = new Date(type === "sign_in" ? eventDay.sign_in_start : eventDay.sign_out_start);
   const windowEnd = new Date(type === "sign_in" ? eventDay.sign_in_end : eventDay.sign_out_end);
 

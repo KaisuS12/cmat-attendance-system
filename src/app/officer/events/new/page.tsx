@@ -3,26 +3,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { DayWindowFields, dayToPayload, emptyDay, withDate, type DayInput } from "@/components/DayWindowFields";
 import { TargetPicker, type Targets } from "@/components/TargetPicker";
-import { Alert, btnPrimary, btnSecondary, inputClass, labelClass, PageTitle } from "@/components/ui";
-import { describeDistance } from "@/lib/geofence";
+import { emptyVenue, NEW_VENUE, SAME_VENUE, VenuePicker, venueToPayload, type VenueValue } from "@/components/VenuePicker";
+import { Alert, btnPrimary, inputClass, labelClass, PageTitle } from "@/components/ui";
 import type { Venue } from "@/types/database";
 
-// Leaflet needs the browser (window), so the map is loaded client-side only.
-const VenueMap = dynamic(() => import("@/components/VenueMap"), {
-  ssr: false,
-  loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-slate-100 sm:h-80" aria-hidden="true" />,
-});
+// Each day can have its own name and venue; both optional.
+type DayDraft = DayInput & { title: string; venue: VenueValue };
 
-function parseCoord(value: string): number | null {
-  if (value.trim() === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-const NEW_VENUE = "__new__";
+const newDay = (base: DayInput = emptyDay()): DayDraft => ({ ...base, title: "", venue: emptyVenue(SAME_VENUE) });
 
 function nextDate(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -35,13 +25,8 @@ export default function NewEventPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [venues, setVenues] = useState<Venue[]>([]);
-  const [venueChoice, setVenueChoice] = useState(NEW_VENUE);
-  const [venueName, setVenueName] = useState("");
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
-  const [radiusMeters, setRadiusMeters] = useState("150");
-  const [locating, setLocating] = useState(false);
-  const [days, setDays] = useState<DayInput[]>([emptyDay()]);
+  const [venue, setVenue] = useState<VenueValue>(emptyVenue());
+  const [days, setDays] = useState<DayDraft[]>([newDay()]);
   const [targets, setTargets] = useState<Targets>({ programs: [], yearLevels: [] });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -53,7 +38,7 @@ export default function NewEventPage() {
       .then((data) => {
         if (ignore || !data.venues?.length) return;
         setVenues(data.venues);
-        setVenueChoice(data.venues[0].id);
+        setVenue((v) => (v.choice === NEW_VENUE && !v.name && !v.latitude ? { ...v, choice: data.venues[0].id } : v));
       })
       .catch(() => {});
     return () => {
@@ -61,28 +46,11 @@ export default function NewEventPage() {
     };
   }, []);
 
-  function fillCurrentLocation() {
-    setError(null);
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude.toFixed(6));
-        setLongitude(pos.coords.longitude.toFixed(6));
-        setLocating(false);
-      },
-      () => {
-        setError("Couldn't get your location. Allow location access, or type the coordinates.");
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 20000 }
-    );
-  }
-
   function addDay() {
     setDays((prev) => {
       const last = prev[prev.length - 1];
       // Continue from the previous day, keeping its window times.
-      return [...prev, last?.dayDate ? withDate(last, nextDate(last.dayDate)) : emptyDay()];
+      return [...prev, last?.dayDate ? newDay(withDate(last, nextDate(last.dayDate))) : newDay()];
     });
   }
 
@@ -92,25 +60,28 @@ export default function NewEventPage() {
 
     const payloads = [];
     for (const [i, day] of days.entries()) {
+      const label = days.length > 1 ? `Day ${i + 1}: ` : "";
       const p = dayToPayload(day);
       if (!p.ok) {
-        setError(days.length > 1 ? `Day ${i + 1}: ${p.message}` : p.message);
+        setError(label + p.message);
         return;
       }
-      payloads.push(p.value);
+      const dayVenue = venueToPayload(day.venue);
+      if (!dayVenue.ok) {
+        setError(`${label}${dayVenue.message}`);
+        return;
+      }
+      payloads.push({
+        ...p.value,
+        ...(day.title.trim() ? { title: day.title.trim() } : {}),
+        ...(dayVenue.value ? { venue: dayVenue.value } : {}),
+      });
     }
 
-    let venue;
-    if (venueChoice === NEW_VENUE) {
-      const lat = Number(latitude);
-      const lng = Number(longitude);
-      if (!latitude || !longitude || Number.isNaN(lat) || Number.isNaN(lng)) {
-        setError("Enter the venue's latitude and longitude, or use your current location.");
-        return;
-      }
-      venue = { name: venueName, latitude: lat, longitude: lng, radiusMeters: Number(radiusMeters) };
-    } else {
-      venue = { venueId: venueChoice };
+    const eventVenue = venueToPayload(venue);
+    if (!eventVenue.ok || !eventVenue.value) {
+      setError(eventVenue.ok ? "Pick a venue." : eventVenue.message);
+      return;
     }
 
     setSubmitting(true);
@@ -121,7 +92,7 @@ export default function NewEventPage() {
         body: JSON.stringify({
           title,
           description,
-          venue,
+          venue: eventVenue.value,
           days: payloads,
           targetPrograms: targets.programs,
           targetYearLevels: targets.yearLevels,
@@ -140,8 +111,6 @@ export default function NewEventPage() {
       setSubmitting(false);
     }
   }
-
-  const selectedVenue = venues.find((v) => v.id === venueChoice);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -188,118 +157,9 @@ export default function NewEventPage() {
 
         <fieldset className="space-y-3 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
           <legend className="px-1 text-sm font-semibold text-slate-900">Venue</legend>
-          {venues.length > 0 && (
-            <select
-              value={venueChoice}
-              onChange={(e) => setVenueChoice(e.target.value)}
-              className={inputClass}
-              aria-label="Venue"
-            >
-              {venues.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name} ({v.radius_meters} m)
-                </option>
-              ))}
-              <option value={NEW_VENUE}>+ New venue…</option>
-            </select>
-          )}
-
-          {selectedVenue && (
-            <>
-              <VenueMap
-                latitude={selectedVenue.latitude}
-                longitude={selectedVenue.longitude}
-                radiusMeters={selectedVenue.radius_meters}
-              />
-              <p className="text-xs text-slate-500">
-                Students can sign in anywhere inside the gold circle: within {selectedVenue.radius_meters} m (
-                {describeDistance(selectedVenue.radius_meters)}).
-              </p>
-            </>
-          )}
-
-          {venueChoice === NEW_VENUE && (
-            <div className="space-y-3">
-              <input
-                required
-                placeholder="Venue name (e.g. CMAT Covered Court)"
-                value={venueName}
-                onChange={(e) => setVenueName(e.target.value)}
-                className={inputClass}
-              />
-              <div className="flex gap-3">
-                <input
-                  required
-                  inputMode="decimal"
-                  placeholder="Latitude"
-                  value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  className={inputClass}
-                />
-                <input
-                  required
-                  inputMode="decimal"
-                  placeholder="Longitude"
-                  value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <button type="button" onClick={fillCurrentLocation} disabled={locating} className={btnSecondary}>
-                {locating ? "Locating..." : "📍 Use my current location"}
-              </button>
-
-              <VenueMap
-                editable
-                latitude={parseCoord(latitude)}
-                longitude={parseCoord(longitude)}
-                radiusMeters={Number(radiusMeters) || 0}
-                onChange={(pos) => {
-                  setLatitude(String(pos.latitude));
-                  setLongitude(String(pos.longitude));
-                }}
-              />
-              <p className="text-xs text-slate-500">
-                Tap the map or drag the pin to the middle of the venue. Switch to <strong>Satellite</strong> (top
-                right) to see the buildings.
-              </p>
-
-              <div className="rounded-lg bg-gold-100/60 p-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <label htmlFor="radius-slider" className="text-sm font-medium text-slate-700">
-                    Sign-in radius
-                  </label>
-                  <input
-                    id="radius-slider"
-                    type="range"
-                    min={20}
-                    max={1000}
-                    step={10}
-                    value={Math.min(1000, Math.max(20, Number(radiusMeters) || 20))}
-                    onChange={(e) => setRadiusMeters(e.target.value)}
-                    className="min-w-40 flex-1 accent-brand-700"
-                    aria-describedby="radius-hint"
-                  />
-                  <label className="flex items-center gap-1.5 text-sm text-slate-600">
-                    <input
-                      required
-                      type="number"
-                      min={20}
-                      max={2000}
-                      value={radiusMeters}
-                      onChange={(e) => setRadiusMeters(e.target.value)}
-                      className={`${inputClass} w-24`}
-                      aria-label="Radius in meters"
-                    />
-                    m
-                  </label>
-                </div>
-                <p id="radius-hint" className="mt-1.5 text-xs text-slate-600">
-                  {describeDistance(Number(radiusMeters))}. GPS drifts indoors, so keep it generous (150 m or more
-                  for gyms and covered courts).
-                </p>
-              </div>
-            </div>
+          <VenuePicker id="event-venue" venues={venues} value={venue} onChange={setVenue} />
+          {days.length > 1 && (
+            <p className="text-xs text-slate-500">Used for every day, unless you pick a different venue for a day below.</p>
           )}
         </fieldset>
 
@@ -319,10 +179,34 @@ export default function NewEventPage() {
                   </button>
                 )}
               </div>
+              <label htmlFor={`day-${i}-title`} className="mb-3 block text-xs font-medium text-slate-500">
+                Day title <span className="font-normal text-slate-400">(optional)</span>
+                <input
+                  id={`day-${i}-title`}
+                  value={day.title}
+                  maxLength={80}
+                  onChange={(e) => {
+                    const title = e.target.value;
+                    setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, title } : d)));
+                  }}
+                  placeholder={i === 0 ? "e.g. Opening Ceremony" : "e.g. Field Day"}
+                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                />
+              </label>
               <DayWindowFields
                 value={day}
-                onChange={(next) => setDays((prev) => prev.map((d, idx) => (idx === i ? next : d)))}
+                onChange={(next) => setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...next } : d)))}
               />
+              <div className="mt-3">
+                <p className="mb-1 text-xs font-medium text-slate-500">Venue for this day</p>
+                <VenuePicker
+                  id={`day-${i}-venue`}
+                  venues={venues}
+                  value={day.venue}
+                  allowSame
+                  onChange={(next) => setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, venue: next } : d)))}
+                />
+              </div>
             </div>
           ))}
           <button type="button" onClick={addDay} className="text-sm font-medium text-slate-600 underline hover:text-slate-900">

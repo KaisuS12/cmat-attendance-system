@@ -10,7 +10,8 @@ import type { EventDay, EventRecord, Venue } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-type EventWithDays = EventRecord & { venues: Venue; event_days: EventDay[] };
+type DayWithVenue = EventDay & { day_venue: Venue | null };
+type EventWithDays = EventRecord & { venues: Venue; event_days: DayWithVenue[] };
 
 function disabledReason(state: WindowState, day: EventDay, type: "sign_in" | "sign_out") {
   const start = type === "sign_in" ? day.sign_in_start : day.sign_out_start;
@@ -56,7 +57,7 @@ export default async function StudentDashboard() {
     supabase.from("semesters").select("id, name").eq("is_active", true).maybeSingle(),
     supabase
       .from("events")
-      .select("*, venues(*), event_days(*)")
+      .select("*, venues(*), event_days(*, day_venue:venues(*))")
       .order("created_at", { ascending: false }),
     supabase
       .from("attendance_records")
@@ -122,6 +123,7 @@ export default async function StudentDashboard() {
               <div key={day.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-slate-800">
+                    {day.title && <span className="text-brand-800">{day.title} · </span>}
                     {formatDayDate(day.day_date)}
                     {day.day_date === today && <span className="ml-2"><Badge tone="gold">Today</Badge></span>}
                   </p>
@@ -130,6 +132,7 @@ export default async function StudentDashboard() {
                     {formatTime(day.sign_out_start)}–{formatTime(day.sign_out_end)}
                   </p>
                 </div>
+                {day.day_venue && <p className="mt-0.5 text-xs text-slate-500">📍 {day.day_venue.name}</p>}
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   {signedIn ? (
                     <span className="text-sm font-medium text-emerald-600">✓ Signed in</span>
@@ -187,7 +190,7 @@ export default async function StudentDashboard() {
           <div className="p-5 pt-3">
             <h2 className="text-lg font-semibold text-brand-800">{nextAction.event.title}</h2>
             <p className="text-sm text-slate-500">
-              {nextAction.event.venues.name} · until{" "}
+              {(nextAction.day.day_venue ?? nextAction.event.venues).name} · until{" "}
               {formatTime(nextAction.type === "sign_in" ? nextAction.day.sign_in_end : nextAction.day.sign_out_end)}
             </p>
             <div className="mt-4">
