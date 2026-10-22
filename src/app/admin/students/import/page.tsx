@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { parseCsv, toCsv } from "@/lib/csv";
 import { generatedIdPrefix, IMPORT_CHUNK_SIZE } from "@/lib/constants";
-import { parseMasterlistTable, type MasterlistIssue, type MasterlistRow } from "@/lib/masterlist";
+import { parseMasterlistWorkbook, type MasterlistIssue, type MasterlistRow, type SheetSummary } from "@/lib/masterlist";
 import { PrintSlipsButton } from "@/components/CredentialSlips";
 import { Alert, btnPrimary, btnSecondary, cardClass, PageTitle } from "@/components/ui";
 
@@ -19,13 +19,18 @@ interface ImportResult {
 }
 
 // Excel files are read in the browser; SheetJS is only downloaded when one
-// is picked. Every cell comes back as the text Excel shows.
-async function readTable(file: File): Promise<string[][]> {
-  if (/\.csv$/i.test(file.name) || file.type === "text/csv") return parseCsv(await file.text());
+// is picked. Every sheet is read (masterlists often have one per class), and
+// every cell comes back as the text Excel shows.
+async function readSheets(file: File): Promise<{ name: string; table: string[][] }[]> {
+  if (/\.csv$/i.test(file.name) || file.type === "text/csv") {
+    return [{ name: file.name, table: parseCsv(await file.text()) }];
+  }
   const XLSX = await import("xlsx");
   const book = XLSX.read(await file.arrayBuffer(), { type: "array" });
-  const sheet = book.Sheets[book.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: "", blankrows: true });
+  return book.SheetNames.map((name) => ({
+    name,
+    table: XLSX.utils.sheet_to_json<string[]>(book.Sheets[name], { header: 1, raw: false, defval: "", blankrows: true }),
+  }));
 }
 
 function download(filename: string, rows: (string | number | null | undefined)[][]) {
@@ -43,6 +48,7 @@ export default function ImportStudentsPage() {
   const [rows, setRows] = useState<MasterlistRow[]>([]);
   const [invalid, setInvalid] = useState<MasterlistIssue[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [sheets, setSheets] = useState<SheetSummary[]>([]);
   const [permission, setPermission] = useState(false);
   const [updateExisting, setUpdateExisting] = useState(false);
   const [running, setRunning] = useState(false);
@@ -57,10 +63,11 @@ export default function ImportStudentsPage() {
     setFileName(file.name);
     let parsed;
     try {
-      parsed = parseMasterlistTable(await readTable(file));
+      parsed = parseMasterlistWorkbook(await readSheets(file));
     } catch {
-      parsed = { rows: [], skipped: [], hasIds: false, error: "Couldn't read this file. Save it as .xlsx or .csv and try again." };
+      parsed = { rows: [], skipped: [], hasIds: false, sheets: [], error: "Couldn't read this file. Save it as .xlsx or .csv and try again." };
     }
+    setSheets(parsed.sheets);
     if (!parsed.error && parsed.rows.length === 0) parsed.error = "No students found below the header row.";
     setRows(parsed.rows);
     setInvalid(parsed.skipped);
@@ -192,12 +199,34 @@ export default function ImportStudentsPage() {
                 </div>
               </div>
 
+              {sheets.length > 1 && (
+                <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                  <p className="font-medium text-slate-700">
+                    {sheets.filter((x) => !x.error).length} sheets read
+                  </p>
+                  <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                    {sheets.map((x) => (
+                      <li key={x.name} className="flex justify-between gap-2 rounded-md bg-slate-50 px-2 py-1">
+                        <span className="truncate text-slate-700">{x.name}</span>
+                        {x.error ? (
+                          <span className="shrink-0 text-xs text-amber-700">not read</span>
+                        ) : (
+                          <span className="shrink-0 tabular-nums text-slate-500">
+                            {[x.program, x.yearLevel && `yr ${x.yearLevel}`].filter(Boolean).join(" · ")} · {x.count}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {invalid.length > 0 && (
                 <details className="rounded-lg border border-amber-200 p-3 text-sm">
                   <summary className="cursor-pointer font-medium text-amber-800">Rows with problems</summary>
                   <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-slate-600">
-                    {invalid.map((r) => (
-                      <li key={r.line}>
+                    {invalid.map((r, i) => (
+                      <li key={i}>
                         Row {r.line}: {r.text} — {r.reason}
                       </li>
                     ))}
@@ -217,8 +246,8 @@ export default function ImportStudentsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {rows.slice(0, 5).map((r) => (
-                        <tr key={r.line}>
+                      {rows.slice(0, 5).map((r, i) => (
+                        <tr key={i}>
                           <td className="px-3 py-1.5">
                             {r.studentId || (
                               <span className="rounded bg-gold-100 px-1.5 py-0.5 text-xs font-medium text-gold-600">Auto</span>
@@ -361,6 +390,7 @@ export default function ImportStudentsPage() {
                 setResults(null);
                 setRows([]);
                 setInvalid([]);
+                setSheets([]);
                 setFileName(null);
                 setPermission(false);
               }}

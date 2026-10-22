@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatName, parseMasterlistTable, splitCourse } from "@/lib/masterlist";
+import { formatName, parseMasterlistTable, parseMasterlistWorkbook, splitCourse } from "@/lib/masterlist";
 import { isValidStudentId, normalizeStudentId } from "@/lib/constants";
 
 // The layout of the school's "MASTER LIST" Excel file.
@@ -79,5 +79,32 @@ describe("helpers", () => {
     expect(normalizeStudentId(" nam26-0001 ")).toBe("NAM26-0001");
     expect(isValidStudentId("NAM26-0001")).toBe(true);
     expect(isValidStudentId("NAM26-1")).toBe(false);
+  });
+});
+
+describe("parseMasterlistWorkbook", () => {
+  const sheet = (title: string, names: string[]) => [["MASTER LIST"], [title], ["", "No.", "Student Name"], ["", "Male"], ...names.map((n, i) => ["", String(i + 1), n])];
+
+  it("reads every sheet with its own course and year", () => {
+    const parsed = parseMasterlistWorkbook([
+      { name: "BSBA FM 1", table: sheet("BSBA  FM 1", ["ALIPO-ON, RJ SARCITA"]) },
+      { name: "BSBA FM 4", table: sheet("BSBA  FM 4", ["CRUZ, ANA", "REYES, BEN"]) },
+      { name: "Empty", table: [[""], [""]] },
+    ]);
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.rows.map((r) => [r.sheet, r.fullName, r.program, r.yearLevel])).toEqual([
+      ["BSBA FM 1", "Alipo-On, Rj Sarcita", "BSBA FM", "1"],
+      ["BSBA FM 4", "Cruz, Ana", "BSBA FM", "4"],
+      ["BSBA FM 4", "Reyes, Ben", "BSBA FM", "4"],
+    ]);
+    expect(parsed.sheets.map((s) => [s.name, s.count])).toEqual([
+      ["BSBA FM 1", 1],
+      ["BSBA FM 4", 2],
+    ]);
+  });
+
+  it("uses the sheet name when there's no course title row", () => {
+    const parsed = parseMasterlistWorkbook([{ name: "BSIT 3", table: [["Name"], ["DELA CRUZ, JUAN"]] }, { name: "x", table: [["Name"]] }]);
+    expect(parsed.rows[0]).toMatchObject({ program: "BSIT", yearLevel: "3" });
   });
 });

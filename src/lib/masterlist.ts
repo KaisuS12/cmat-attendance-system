@@ -8,6 +8,7 @@ import { isValidStudentId, normalizeStudentId } from "@/lib/constants";
 
 export interface MasterlistRow {
   line: number;
+  sheet?: string; // Excel sheet the row came from, when the file has several
   studentId: string; // "" = the system will generate one
   fullName: string;
   program: string;
@@ -83,7 +84,7 @@ function findHeader(table: string[][]): { index: number; cols: Partial<Record<Co
   return null;
 }
 
-export function parseMasterlistTable(table: string[][]): ParsedMasterlist {
+export function parseMasterlistTable(table: string[][], fallbackCourse = ""): ParsedMasterlist {
   const header = findHeader(table);
   if (!header) {
     return {
@@ -98,7 +99,8 @@ export function parseMasterlistTable(table: string[][]): ParsedMasterlist {
 
   // Course written once above the table (e.g. a "BSTM 1" title row) is the
   // fallback for files without a Course column.
-  let titleCourse = "";
+  // The sheet's name (e.g. "BSBA FM 4") is the last resort.
+  let titleCourse = COURSE_YEAR.test(fallbackCourse.trim()) ? fallbackCourse.trim() : "";
   for (let i = 0; i < index; i++) {
     for (const c of table[i]) {
       const v = String(c ?? "").trim();
@@ -143,4 +145,58 @@ export function parseMasterlistTable(table: string[][]): ParsedMasterlist {
   }
 
   return { rows, skipped, hasIds: rows.some((r) => r.studentId !== "") };
+}
+
+export interface SheetSummary {
+  name: string;
+  count: number;
+  program: string;
+  yearLevel: string;
+  error?: string;
+}
+
+// A workbook often has one sheet per class ("BSBA FM 1", "BSBA MM 1", …
+// "BSBA FM 4"). Every sheet is read with its own title-row course, and the
+// results are combined; the same student twice (same name, program and year,
+// or same ID) is kept once.
+export function parseMasterlistWorkbook(
+  sheets: { name: string; table: string[][] }[]
+): ParsedMasterlist & { sheets: SheetSummary[] } {
+  const rows: MasterlistRow[] = [];
+  const skipped: MasterlistIssue[] = [];
+  const summaries: SheetSummary[] = [];
+  const seen = new Set<string>();
+  const multi = sheets.length > 1;
+
+  for (const { name, table } of sheets) {
+    if (table.every((r) => r.every((c) => !String(c ?? "").trim()))) continue; // empty sheet
+    const parsed = parseMasterlistTable(table, name);
+    if (parsed.error) {
+      summaries.push({ name, count: 0, program: "", yearLevel: "", error: parsed.error });
+      continue;
+    }
+    let count = 0;
+    for (const r of parsed.rows) {
+      const key = r.studentId ? `id:${r.studentId.toLowerCase()}` : `n:${r.fullName.toLowerCase()}|${r.program}|${r.yearLevel}`;
+      if (seen.has(key)) {
+        skipped.push({ line: r.line, text: multi ? `${name}: ${r.fullName}` : r.fullName, reason: "Duplicate in file" });
+        continue;
+      }
+      seen.add(key);
+      rows.push(multi ? { ...r, sheet: name } : r);
+      count++;
+    }
+    skipped.push(...parsed.skipped.map((x) => (multi ? { ...x, text: `${name}: ${x.text}` } : x)));
+    const first = parsed.rows[0];
+    summaries.push({ name, count, program: first?.program ?? "", yearLevel: first?.yearLevel ?? "" });
+  }
+
+  const readable = summaries.filter((x) => !x.error);
+  return {
+    rows,
+    skipped,
+    hasIds: rows.some((r) => r.studentId !== ""),
+    sheets: summaries,
+    error: readable.length === 0 ? (summaries[0]?.error ?? "The file has no data.") : undefined,
+  };
 }
