@@ -169,7 +169,7 @@ export async function AttendanceRecordView({
                   <p className="mt-1 text-xs text-slate-500">
                     In {r.signIn ? formatTime(r.signIn.recorded_at) : "—"}
                     {r.signIn?.method === "manual" && " (manual)"} · Out{" "}
-                    {r.signOut ? formatTime(r.signOut.recorded_at) : "—"}
+                    {r.signOut ? formatTime(r.signOut.recorded_at) : r.day.sign_out_required === false ? "not needed" : "—"}
                     {r.signOut?.method === "manual" && " (manual)"}
                   </p>
                 </li>
@@ -198,7 +198,13 @@ export async function AttendanceRecordView({
                         {r.signIn?.method === "manual" && <span className="ml-1 text-xs text-slate-400">(manual)</span>}
                       </td>
                       <td className="py-2.5 pr-3 text-slate-600">
-                        {r.signOut ? formatTime(r.signOut.recorded_at) : "—"}
+                        {r.signOut ? (
+                          formatTime(r.signOut.recorded_at)
+                        ) : r.day.sign_out_required === false ? (
+                          <span className="text-xs text-slate-400">Not needed</span>
+                        ) : (
+                          "—"
+                        )}
                         {r.signOut?.method === "manual" && <span className="ml-1 text-xs text-slate-400">(manual)</span>}
                       </td>
                       <td className="py-2.5">
