@@ -32,9 +32,9 @@ const bodySchema = z
     targetPrograms: z.array(z.string()).max(50).optional(),
     targetYearLevels: z.array(z.string()).max(20).optional(),
   })
-  .refine((b) => new Set(b.days.map((d) => d.dayDate)).size === b.days.length, {
+  .refine((b) => new Set(b.days.map((d) => `${d.dayDate}|${d.session.toLowerCase()}`)).size === b.days.length, {
     path: ["days"],
-    message: "Each day must have a different date.",
+    message: "Two sessions on the same date need different names (e.g. Morning and Afternoon).",
   });
 
 export async function POST(request: Request) {

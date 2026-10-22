@@ -31,11 +31,14 @@ export async function POST(request: Request) {
       .select("*")
       .eq("id", studentProfileId)
       .single(),
-    admin.from("event_days").select("id").eq("id", eventDayId).single(),
+    admin.from("event_days").select("id, sign_out_required").eq("id", eventDayId).single(),
   ]);
 
   if (!student || student.role !== "student") {
     return NextResponse.json({ error: "Student not found." }, { status: 404 });
+  }
+  if (type === "sign_out" && eventDay && eventDay.sign_out_required === false) {
+    return NextResponse.json({ error: "This session has no sign-out. Signing in is enough." }, { status: 409 });
   }
   if (student.graduated_at) {
     return NextResponse.json({ error: "This student has graduated and no longer signs in to events." }, { status: 409 });

@@ -29,13 +29,20 @@ export async function PATCH(
     .single();
   if (!current) return NextResponse.json({ error: "Event day not found." }, { status: 404 });
 
+  const signOutRequired = current.sign_out_required !== false;
   const merged = {
     signInStart: body.data.signInStart ?? current.sign_in_start,
     signInEnd: body.data.signInEnd ?? current.sign_in_end,
     signOutStart: body.data.signOutStart ?? current.sign_out_start,
     signOutEnd: body.data.signOutEnd ?? current.sign_out_end,
   };
-  const problem = dayWindowProblem(merged);
+  // Sign-in only: the sign-out window isn't used; keep it pinned to the end
+  // of sign-in so "is this session over?" stays right after an extension.
+  if (!signOutRequired) {
+    merged.signOutStart = merged.signInEnd;
+    merged.signOutEnd = merged.signInEnd;
+  }
+  const problem = dayWindowProblem(merged, signOutRequired);
   if (problem) return NextResponse.json({ error: problem.message }, { status: 400 });
 
   const updates = {

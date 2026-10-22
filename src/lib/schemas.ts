@@ -24,15 +24,24 @@ export const daySchema = z
     // different from the event's.
     title: z.string().trim().max(80, "Day title is too long.").optional(),
     venue: venueSchema.optional(),
+    // Several sessions can share a date ("Morning", "Afternoon").
+    session: z.string().trim().max(30, "Session name is too long.").default(""),
+    // false = sign-in only: signing in counts as present.
+    signOutRequired: z.boolean().default(true),
     signInStart: isoDateTime,
     signInEnd: isoDateTime,
     signOutStart: isoDateTime,
     signOutEnd: isoDateTime,
   })
   .superRefine((day, ctx) => {
-    const problem = dayWindowProblem(day);
+    const problem = dayWindowProblem(day, day.signOutRequired);
     if (problem) ctx.addIssue({ code: "custom", path: [problem.field], message: problem.message });
-  });
+  })
+  // Sign-in only: the unused sign-out window is pinned to the end of sign-in,
+  // so "is this session over?" checks keep working.
+  .transform((day) =>
+    day.signOutRequired ? day : { ...day, signOutStart: day.signInEnd, signOutEnd: day.signInEnd }
+  );
 
 export const dayPatchSchema = z.object({
   signInStart: isoDateTime.optional(),

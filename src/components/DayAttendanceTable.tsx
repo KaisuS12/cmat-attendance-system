@@ -34,11 +34,13 @@ export function DayAttendanceTable({
   missing,
   sections,
   canVoid,
+  signOutRequired = true,
 }: {
   rows: DayAttendanceRow[];
   missing: StudentSummary[];
   sections: SectionStat[];
   canVoid: boolean;
+  signOutRequired?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -77,7 +79,13 @@ export function DayAttendanceTable({
   }
 
   function renderEntry(entry: AttendanceEntry | null, name: string, type: VoidTarget["type"]) {
-    if (!entry) return <span className="text-slate-300">—</span>;
+    if (!entry) {
+      return type === "sign-out" && !signOutRequired ? (
+        <span className="text-xs text-slate-400">not needed</span>
+      ) : (
+        <span className="text-slate-300">—</span>
+      );
+    }
     return (
       <span className="inline-flex flex-wrap items-center gap-1" title={entry.reason ?? undefined}>
         {formatTime(entry.at)}

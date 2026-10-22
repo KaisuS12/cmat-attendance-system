@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { formatDayDate, formatTime, requestTime } from "@/lib/datetime";
+import { formatTime, requestTime } from "@/lib/datetime";
+import { isComplete, slotLabel } from "@/lib/attendance-status";
 import { Badge, EmptyState } from "@/components/ui";
 import { SemesterSelect } from "@/components/SemesterSelect";
 import { PrintButton } from "@/components/PrintButton";
@@ -61,7 +62,7 @@ export async function AttendanceRecordView({
   }
   const { data: eventRows } = await eventsQuery;
   const allEvents = ((eventRows ?? []) as EventWithDays[])
-    .map((e) => ({ ...e, event_days: [...e.event_days].sort((a, b) => a.day_date.localeCompare(b.day_date)) }))
+    .map((e) => ({ ...e, event_days: [...e.event_days].sort((a, b) => a.day_date.localeCompare(b.day_date) || a.sign_in_start.localeCompare(b.sign_in_start)) }))
     .filter((e) => e.event_days.length > 0)
     .sort((a, b) => a.event_days[0].day_date.localeCompare(b.event_days[0].day_date));
 
@@ -87,7 +88,7 @@ export async function AttendanceRecordView({
   let counted = 0;
   for (const e of shown.filter(isRequired)) {
     for (const d of e.event_days) {
-      const complete = Boolean(recordFor(d.id, "sign_in") && recordFor(d.id, "sign_out"));
+      const complete = isComplete({ signIn: recordFor(d.id, "sign_in"), signOut: recordFor(d.id, "sign_out") }, d);
       // A day counts once it's over — or as soon as the student has fully
       // signed in and out, even while the sign-out window is still open.
       // Days still in progress without a complete record aren't counted yet.
@@ -161,7 +162,7 @@ export async function AttendanceRecordView({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-medium text-slate-800">{r.event.title}</p>
-                      <p className="text-sm text-slate-500">{formatDayDate(r.day.day_date, "numeric")}</p>
+                      <p className="text-sm text-slate-500">{slotLabel(r.day, "numeric")}</p>
                     </div>
                     <StatusBadge row={r} />
                   </div>
@@ -191,7 +192,7 @@ export async function AttendanceRecordView({
                   {rows.map((r) => (
                     <tr key={r.day.id} className="break-inside-avoid">
                       <td className="py-2.5 pr-3 font-medium text-slate-800">{r.firstOfEvent ? r.event.title : ""}</td>
-                      <td className="py-2.5 pr-3 text-slate-600">{formatDayDate(r.day.day_date, "numeric")}</td>
+                      <td className="py-2.5 pr-3 text-slate-600">{slotLabel(r.day, "numeric")}</td>
                       <td className="py-2.5 pr-3 text-slate-600">
                         {r.signIn ? formatTime(r.signIn.recorded_at) : "—"}
                         {r.signIn?.method === "manual" && <span className="ml-1 text-xs text-slate-400">(manual)</span>}
@@ -233,7 +234,7 @@ interface RecordRow {
 function StatusBadge({ row }: { row: RecordRow }) {
   const { signIn, signOut, over, required } = row;
   if (!required) return <Badge tone="slate">Not required</Badge>;
-  if (signIn && signOut) return <Badge tone="green">Present</Badge>;
+  if (isComplete({ signIn, signOut }, row.day)) return <Badge tone="green">Present</Badge>;
   if (!over) return <Badge tone="slate">{signIn ? "In progress" : "Upcoming"}</Badge>;
   if (signIn) return <Badge tone="amber">No sign-out</Badge>;
   if (signOut) return <Badge tone="amber">No sign-in</Badge>;

@@ -77,7 +77,9 @@ export default async function StudentDashboard() {
     .filter((e) => !profile || isEventForStudent(e, profile))
     .map((e) => ({
     ...e,
-    event_days: [...e.event_days].sort((a, b) => a.day_date.localeCompare(b.day_date)),
+    event_days: [...e.event_days].sort(
+      (a, b) => a.day_date.localeCompare(b.day_date) || a.sign_in_start.localeCompare(b.sign_in_start)
+    ),
   }));
 
   const lastEnd = (e: EventWithDays) => Math.max(...e.event_days.map((d) => new Date(d.sign_out_end).getTime()));
@@ -95,6 +97,7 @@ export default async function StudentDashboard() {
     .flatMap((event) =>
       event.event_days.flatMap((day) =>
         (["sign_in", "sign_out"] as const)
+          .filter((type) => type === "sign_in" || day.sign_out_required)
           .filter((type) => {
             const [start, end] =
               type === "sign_in" ? [day.sign_in_start, day.sign_in_end] : [day.sign_out_start, day.sign_out_end];
@@ -125,11 +128,18 @@ export default async function StudentDashboard() {
                   <p className="text-sm font-medium text-slate-800">
                     {day.title && <span className="text-brand-800">{day.title} · </span>}
                     {formatDayDate(day.day_date)}
+                    {day.session && <span className="text-slate-500"> · {day.session}</span>}
                     {day.day_date === today && <span className="ml-2"><Badge tone="gold">Today</Badge></span>}
                   </p>
                   <p className="text-xs text-slate-500">
-                    In {formatTime(day.sign_in_start)}–{formatTime(day.sign_in_end)} · Out{" "}
-                    {formatTime(day.sign_out_start)}–{formatTime(day.sign_out_end)}
+                    In {formatTime(day.sign_in_start)}–{formatTime(day.sign_in_end)}
+                    {day.sign_out_required ? (
+                      <>
+                        {" "}· Out {formatTime(day.sign_out_start)}–{formatTime(day.sign_out_end)}
+                      </>
+                    ) : (
+                      <> · Sign-in only</>
+                    )}
                   </p>
                 </div>
                 {day.day_venue && <p className="mt-0.5 text-xs text-slate-500">📍 {day.day_venue.name}</p>}
@@ -146,7 +156,9 @@ export default async function StudentDashboard() {
                   ) : (
                     <span className="text-sm text-slate-400">No sign-in</span>
                   )}
-                  {signedOut ? (
+                  {!day.sign_out_required ? (
+                    <span className="text-xs text-slate-500">No sign-out needed</span>
+                  ) : signedOut ? (
                     <span className="text-sm font-medium text-emerald-600">✓ Signed out</span>
                   ) : interactive ? (
                     <AttendanceAction

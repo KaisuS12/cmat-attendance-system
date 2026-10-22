@@ -14,6 +14,7 @@ function toInput(day: EventDay): DayInput {
     signInEnd: isoToLocalInput(day.sign_in_end),
     signOutStart: isoToLocalInput(day.sign_out_start),
     signOutEnd: isoToLocalInput(day.sign_out_end),
+    signOutRequired: day.sign_out_required !== false,
   };
 }
 
@@ -75,9 +76,11 @@ export function EditWindowControl({ eventId, day }: { eventId: string; day: Even
         <button onClick={() => extend("signInEnd")} disabled={saving} className={`${btnSecondary} px-2.5 py-1 text-xs`}>
           Sign-in +15 min
         </button>
-        <button onClick={() => extend("signOutEnd")} disabled={saving} className={`${btnSecondary} px-2.5 py-1 text-xs`}>
-          Sign-out +15 min
-        </button>
+        {day.sign_out_required !== false && (
+          <button onClick={() => extend("signOutEnd")} disabled={saving} className={`${btnSecondary} px-2.5 py-1 text-xs`}>
+            Sign-out +15 min
+          </button>
+        )}
         <button
           onClick={() => {
             setValue(toInput(day));
@@ -94,7 +97,7 @@ export function EditWindowControl({ eventId, day }: { eventId: string; day: Even
 
   return (
     <div className="space-y-3 rounded-lg border border-slate-200 p-3">
-      <DayWindowFields value={value} onChange={setValue} showDate={false} />
+      <DayWindowFields value={value} onChange={setValue} showDate={false} showPresets={false} allowSignOutToggle={false} />
       {error && <Alert kind="error">{error}</Alert>}
       <div className="flex gap-2">
         <button onClick={() => save(value)} disabled={saving} className={`${btnPrimary} px-3 py-1.5 text-xs`}>

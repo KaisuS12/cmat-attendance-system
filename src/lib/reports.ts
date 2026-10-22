@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 import { isEventForStudent, type EventTargets } from "@/lib/eligibility";
+import { isComplete } from "@/lib/attendance-status";
 import type { AttendanceMethod, AttendanceType } from "@/types/database";
 
 export interface StudentSummary {
@@ -79,10 +80,13 @@ export async function loadDayAttendance(
   return byDay;
 }
 
-export function dayCounts(rows: DayAttendanceRow[]) {
+// `day` carries sign_out_required: for sign-in-only slots, signing in is enough.
+type SlotRule = { sign_out_required?: boolean | null };
+
+export function dayCounts(rows: DayAttendanceRow[], day: SlotRule = {}) {
   const signedIn = rows.filter((r) => r.signIn).length;
   const signedOut = rows.filter((r) => r.signOut).length;
-  const complete = rows.filter((r) => r.signIn && r.signOut).length;
+  const complete = rows.filter((r) => isComplete(r, day)).length;
   return { signedIn, signedOut, complete, incomplete: rows.length - complete };
 }
 
@@ -150,9 +154,9 @@ export async function loadEligibleStudents(
 }
 
 // Expected / missing / per-group (program + year) figures for one event day.
-export function dayStats(rows: DayAttendanceRow[], eligible: StudentSummary[]) {
+export function dayStats(rows: DayAttendanceRow[], eligible: StudentSummary[], day: SlotRule = {}) {
   const signedInIds = new Set(rows.filter((r) => r.signIn).map((r) => r.student.id));
-  const completeIds = new Set(rows.filter((r) => r.signIn && r.signOut).map((r) => r.student.id));
+  const completeIds = new Set(rows.filter((r) => isComplete(r, day)).map((r) => r.student.id));
   const missing = eligible.filter((s) => !signedInIds.has(s.id));
 
   const bySection = new Map<string, SectionStat>();
@@ -190,7 +194,7 @@ export interface EventSummary {
 export interface AnalyticsEvent extends EventTargets {
   id: string;
   title: string;
-  event_days: { id: string; day_date: string; sign_out_end: string }[];
+  event_days: { id: string; day_date: string; sign_out_end: string; session?: string; sign_out_required?: boolean }[];
 }
 
 export interface TrendPoint {
@@ -310,7 +314,7 @@ export function computeSemesterAnalytics({
           if (r.signIn.method === "manual") methods.manual++;
           else methods.qr++;
         }
-        if (r.signIn && r.signOut) completeIds.add(r.student.id);
+        if (isComplete(r, day)) completeIds.add(r.student.id);
       }
 
       let daySignedIn = 0;
@@ -333,7 +337,7 @@ export function computeSemesterAnalytics({
       trend.push({
         dayId: day.id,
         eventId: event.id,
-        title: event.title,
+        title: day.session ? `${event.title} · ${day.session}` : event.title,
         date: day.day_date,
         expected: eligible.length,
         signedIn: daySignedIn,
@@ -396,7 +400,7 @@ export async function loadSemesterAnalytics(
 ): Promise<SemesterAnalytics> {
   const { data } = await client
     .from("events")
-    .select("id, title, target_programs, target_year_levels, event_days(id, day_date, sign_out_end)")
+    .select("id, title, target_programs, target_year_levels, event_days(id, day_date, sign_out_end, session, sign_out_required)")
     .or(semester.is_active ? `semester_id.eq.${semester.id},semester_id.is.null` : `semester_id.eq.${semester.id}`);
   const events = (data ?? []) as AnalyticsEvent[];
 

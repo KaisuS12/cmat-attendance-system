@@ -3,16 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DayWindowFields, dayToPayload, emptyDay, withDate, type DayInput } from "@/components/DayWindowFields";
+import { DayCard, dayCardOnDate, dayCardToPayloads, emptyDayCard, type DayCardValue } from "@/components/DayCard";
 import { TargetPicker, type Targets } from "@/components/TargetPicker";
-import { emptyVenue, NEW_VENUE, SAME_VENUE, VenuePicker, venueToPayload, type VenueValue } from "@/components/VenuePicker";
+import { emptyVenue, NEW_VENUE, VenuePicker, venueToPayload, type VenueValue } from "@/components/VenuePicker";
 import { Alert, btnPrimary, inputClass, labelClass, PageTitle } from "@/components/ui";
 import type { Venue } from "@/types/database";
-
-// Each day can have its own name and venue; both optional.
-type DayDraft = DayInput & { title: string; venue: VenueValue };
-
-const newDay = (base: DayInput = emptyDay()): DayDraft => ({ ...base, title: "", venue: emptyVenue(SAME_VENUE) });
 
 function nextDate(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -26,7 +21,8 @@ export default function NewEventPage() {
   const [description, setDescription] = useState("");
   const [venues, setVenues] = useState<Venue[]>([]);
   const [venue, setVenue] = useState<VenueValue>(emptyVenue());
-  const [days, setDays] = useState<DayDraft[]>([newDay()]);
+  // Each day: optional title and venue, and one or more sessions.
+  const [days, setDays] = useState<DayCardValue[]>([emptyDayCard()]);
   const [targets, setTargets] = useState<Targets>({ programs: [], yearLevels: [] });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -50,7 +46,7 @@ export default function NewEventPage() {
     setDays((prev) => {
       const last = prev[prev.length - 1];
       // Continue from the previous day, keeping its window times.
-      return [...prev, last?.dayDate ? newDay(withDate(last, nextDate(last.dayDate))) : newDay()];
+      return [...prev, last?.dayDate ? dayCardOnDate(last, nextDate(last.dayDate)) : emptyDayCard()];
     });
   }
 
@@ -60,22 +56,16 @@ export default function NewEventPage() {
 
     const payloads = [];
     for (const [i, day] of days.entries()) {
-      const label = days.length > 1 ? `Day ${i + 1}: ` : "";
-      const p = dayToPayload(day);
+      if (!day.dayDate) {
+        setError(days.length > 1 ? `Day ${i + 1}: pick a date.` : "Pick a date.");
+        return;
+      }
+      const p = dayCardToPayloads(day, days.length > 1 ? `Day ${i + 1}: ` : "");
       if (!p.ok) {
-        setError(label + p.message);
+        setError(p.message);
         return;
       }
-      const dayVenue = venueToPayload(day.venue);
-      if (!dayVenue.ok) {
-        setError(`${label}${dayVenue.message}`);
-        return;
-      }
-      payloads.push({
-        ...p.value,
-        ...(day.title.trim() ? { title: day.title.trim() } : {}),
-        ...(dayVenue.value ? { venue: dayVenue.value } : {}),
-      });
+      payloads.push(...p.value);
     }
 
     const eventVenue = venueToPayload(venue);
@@ -166,48 +156,16 @@ export default function NewEventPage() {
         <fieldset className="space-y-4 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4 sm:p-5">
           <legend className="px-1 text-sm font-semibold text-slate-900">Days</legend>
           {days.map((day, i) => (
-            <div key={i} className="rounded-lg bg-slate-50 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">Day {i + 1}</span>
-                {days.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setDays((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="text-xs text-red-600 hover:underline"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-              <label htmlFor={`day-${i}-title`} className="mb-3 block text-xs font-medium text-slate-500">
-                Day title <span className="font-normal text-slate-400">(optional)</span>
-                <input
-                  id={`day-${i}-title`}
-                  value={day.title}
-                  maxLength={80}
-                  onChange={(e) => {
-                    const title = e.target.value;
-                    setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, title } : d)));
-                  }}
-                  placeholder={i === 0 ? "e.g. Opening Ceremony" : "e.g. Field Day"}
-                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-                />
-              </label>
-              <DayWindowFields
-                value={day}
-                onChange={(next) => setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...next } : d)))}
-              />
-              <div className="mt-3">
-                <p className="mb-1 text-xs font-medium text-slate-500">Venue for this day</p>
-                <VenuePicker
-                  id={`day-${i}-venue`}
-                  venues={venues}
-                  value={day.venue}
-                  allowSame
-                  onChange={(next) => setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, venue: next } : d)))}
-                />
-              </div>
-            </div>
+            <DayCard
+              key={i}
+              id={`day-${i}`}
+              heading={`Day ${i + 1}`}
+              value={day}
+              venues={venues}
+              titlePlaceholder={i === 0 ? "e.g. Opening Ceremony" : "e.g. Field Day"}
+              onChange={(next) => setDays((prev) => prev.map((d, idx) => (idx === i ? next : d)))}
+              onRemove={days.length > 1 ? () => setDays((prev) => prev.filter((_, idx) => idx !== i)) : undefined}
+            />
           ))}
           <button type="button" onClick={addDay} className="text-sm font-medium text-slate-600 underline hover:text-slate-900">
             + Add another day

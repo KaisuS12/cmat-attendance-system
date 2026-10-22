@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/session";
+import { SignOutToggle } from "@/components/SignOutToggle";
+import { slotLabel } from "@/lib/attendance-status";
 import { EditWindowControl } from "@/components/EditWindowControl";
 import { EditEventForm } from "@/components/EditEventForm";
 import { AddDayForm } from "@/components/AddDayForm";
@@ -10,7 +12,7 @@ import { RemoveDayButton } from "@/components/RemoveDayButton";
 import { DayAttendanceTable } from "@/components/DayAttendanceTable";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Badge, btnPrimary, btnSecondary, PageTitle } from "@/components/ui";
-import { formatDayDate, formatShortDateTime, todayInAppTz, windowState } from "@/lib/datetime";
+import { formatShortDateTime, todayInAppTz, windowState } from "@/lib/datetime";
 import { describeTargets, isTargeted } from "@/lib/eligibility";
 import { dayCounts, dayStats, loadDayAttendance, loadEligibleStudents } from "@/lib/reports";
 import type { EventDay, EventRecord, Venue } from "@/types/database";
@@ -47,7 +49,9 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
 
   if (!event) notFound();
 
-  const days = [...event.event_days].sort((a, b) => a.day_date.localeCompare(b.day_date));
+  const days = [...event.event_days].sort(
+    (a, b) => a.day_date.localeCompare(b.day_date) || a.sign_in_start.localeCompare(b.sign_in_start)
+  );
   const [byDay, eligible] = await Promise.all([
     loadDayAttendance(supabase, days.map((d) => d.id)),
     loadEligibleStudents(supabase, event),
@@ -89,8 +93,8 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
       <div className="mt-6 space-y-5">
         {days.map((day) => {
           const rows = byDay.get(day.id) ?? [];
-          const counts = dayCounts(rows);
-          const stats = dayStats(rows, eligible);
+          const counts = dayCounts(rows, day);
+          const stats = dayStats(rows, eligible, day);
           const signIn = windowState(day.sign_in_start, day.sign_in_end);
           const signOut = windowState(day.sign_out_start, day.sign_out_end);
           const live = signIn === "open" || signOut === "open";
@@ -101,8 +105,9 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-semibold text-slate-900">
                     {day.title && <span className="text-brand-800">{day.title} · </span>}
-                    {formatDayDate(day.day_date, "long")}
+                    {slotLabel(day, "long")}
                   </h2>
+                  {!day.sign_out_required && <Badge tone="slate">Sign-in only</Badge>}
                   {live ? (
                     <Badge tone="green">Live</Badge>
                   ) : day.day_date === today ? (
@@ -131,14 +136,25 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
                 <div className="rounded-lg bg-slate-50 p-3">
                   <p className="text-xs font-medium text-slate-500">Sign-out window</p>
                   <p className="mt-0.5 text-slate-700">
-                    {formatShortDateTime(day.sign_out_start)} – {formatShortDateTime(day.sign_out_end)}
+                    {day.sign_out_required
+                      ? `${formatShortDateTime(day.sign_out_start)} – ${formatShortDateTime(day.sign_out_end)}`
+                      : "No sign-out: signing in counts as present"}
                   </p>
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <EditWindowControl eventId={event.id} day={day} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <EditWindowControl eventId={event.id} day={day} />
+                  <SignOutToggle
+                    eventId={event.id}
+                    dayId={day.id}
+                    label={slotLabel(day, "long")}
+                    required={day.sign_out_required !== false}
+                    canRestore={day.sign_out_end > day.sign_in_end}
+                  />
+                </div>
                 {days.length > 1 && rows.length === 0 && (
-                  <RemoveDayButton eventId={event.id} dayId={day.id} label={formatDayDate(day.day_date, "long")} />
+                  <RemoveDayButton eventId={event.id} dayId={day.id} label={slotLabel(day, "long")} />
                 )}
               </div>
 
@@ -164,7 +180,13 @@ export default async function EventDetailPage({ params }: PageProps<"/officer/ev
                 )}
               </div>
 
-              <DayAttendanceTable rows={rows} missing={stats.missing} sections={stats.sections} canVoid={canVoid} />
+              <DayAttendanceTable
+                rows={rows}
+                missing={stats.missing}
+                sections={stats.sections}
+                canVoid={canVoid}
+                signOutRequired={day.sign_out_required}
+              />
             </section>
           );
         })}

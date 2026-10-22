@@ -35,7 +35,7 @@ export default async function ScannerPage({ params }: PageProps<"/officer/scan/[
     <Scanner
       day={day}
       eventId={day.events.id}
-      eventTitle={day.title ? `${day.events.title} · ${day.title}` : day.events.title}
+      eventTitle={[day.events.title, day.title, day.session].filter(Boolean).join(" · ")}
       venueName={day.day_venue?.name ?? day.events.venues.name}
       initialCounts={{ sign_in: signIns ?? 0, sign_out: signOuts ?? 0 }}
       debugTools={ENABLE_TOKEN_DEBUG_TOOLS}

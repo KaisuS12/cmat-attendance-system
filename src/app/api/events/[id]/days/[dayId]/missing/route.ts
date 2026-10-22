@@ -20,14 +20,14 @@ export async function GET(
 
   const { data: event } = await admin
     .from("events")
-    .select("title, semester_id, target_programs, target_year_levels, event_days(id, day_date)")
+    .select("title, semester_id, target_programs, target_year_levels, event_days(id, day_date, session, sign_out_required)")
     .eq("id", id)
-    .single<EventTargets & { title: string; semester_id: string | null; event_days: { id: string; day_date: string }[] }>();
+    .single<EventTargets & { title: string; semester_id: string | null; event_days: { id: string; day_date: string; session: string; sign_out_required: boolean }[] }>();
   const day = event?.event_days.find((d) => d.id === dayId);
   if (!event || !day) return NextResponse.json({ error: "Event day not found." }, { status: 404 });
 
   const [byDay, eligible] = await Promise.all([loadDayAttendance(admin, [dayId]), loadEligibleStudents(admin, event)]);
-  const { missing } = dayStats(byDay.get(dayId) ?? [], eligible);
+  const { missing } = dayStats(byDay.get(dayId) ?? [], eligible, day);
 
   const sorted = [...missing].sort(
     (a, b) => sectionLabel(a).localeCompare(sectionLabel(b), undefined, { numeric: true }) || a.full_name.localeCompare(b.full_name)

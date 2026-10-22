@@ -58,6 +58,8 @@ export interface EventDay {
   sign_out_end: string;
   title: string | null; // optional name for the day, e.g. "Field Day"
   venue_id: string | null; // null = the event's venue
+  session: string; // "" for a single slot; e.g. "Morning" / "Afternoon" when a date has several
+  sign_out_required: boolean; // false = sign-in only: signing in counts as present
   created_at: string;
   updated_at: string;
 }

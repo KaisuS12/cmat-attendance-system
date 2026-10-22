@@ -8,11 +8,15 @@ export interface DayWindows {
 
 // Returns the first ordering problem with a day's windows, or null if valid.
 // Shared by create, add-day, and edit so all three enforce the same rules.
-export function dayWindowProblem(w: DayWindows): { field: keyof DayWindows; message: string } | null {
+export function dayWindowProblem(
+  w: DayWindows,
+  signOutRequired = true
+): { field: keyof DayWindows; message: string } | null {
   const t = (s: string) => new Date(s).getTime();
   if (t(w.signInEnd) <= t(w.signInStart)) {
     return { field: "signInEnd", message: "Sign-in must end after it starts." };
   }
+  if (!signOutRequired) return null; // sign-in only: the sign-out window isn't used
   if (t(w.signOutEnd) <= t(w.signOutStart)) {
     return { field: "signOutEnd", message: "Sign-out must end after it starts." };
   }

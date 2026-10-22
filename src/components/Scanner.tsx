@@ -133,7 +133,8 @@ export function Scanner({
   }, []);
 
   const signInState = windowState(day.sign_in_start, day.sign_in_end, now);
-  const signOutState = windowState(day.sign_out_start, day.sign_out_end, now);
+  // Sign-in-only sessions have no sign-out window to show.
+  const signOutState = day.sign_out_required === false ? "closed" : windowState(day.sign_out_start, day.sign_out_end, now);
   const windowLabel =
     signInState === "open"
       ? { tone: "open", text: `Sign-in open until ${formatTime(day.sign_in_end)}` }
@@ -143,7 +144,7 @@ export function Scanner({
       ? { tone: "closed", text: `Sign-in opens at ${formatTime(day.sign_in_start)}` }
       : signOutState === "not_open"
       ? { tone: "closed", text: `Sign-out opens at ${formatTime(day.sign_out_start)}` }
-      : { tone: "closed", text: "All windows for this day have closed" };
+      : { tone: "closed", text: day.sign_out_required === false ? "Sign-in closed (no sign-out this session)" : "All windows for this day have closed" };
 
   const showResult = useCallback((r: ScanResult) => {
     setResult(r);
@@ -384,7 +385,8 @@ export function Scanner({
             <>
               <ManualEntry
                 eventDayId={day.id}
-                defaultType={signOutState !== "not_open" ? "sign_out" : "sign_in"}
+                defaultType={day.sign_out_required !== false && signOutState !== "not_open" ? "sign_out" : "sign_in"}
+                signOutRequired={day.sign_out_required !== false}
                 onResult={(r) => {
                   showResult(r);
                   if (r.ok) setSheet(null);
@@ -484,10 +486,12 @@ function ManualEntry({
   eventDayId,
   defaultType,
   onResult,
+  signOutRequired,
 }: {
   eventDayId: string;
   defaultType: AttendanceType;
   onResult: (r: ScanResult) => void;
+  signOutRequired: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<StudentInfo[]>([]);
@@ -606,7 +610,7 @@ function ManualEntry({
       <fieldset>
         <legend className={labelClass}>Record</legend>
         <div className="mt-1 flex gap-2">
-          {(["sign_in", "sign_out"] as const).map((t) => (
+          {(signOutRequired ? (["sign_in", "sign_out"] as const) : (["sign_in"] as const)).map((t) => (
             <label
               key={t}
               className={`flex flex-1 cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium ${

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isComplete, slotLabel } from "@/lib/attendance-status";
 import { csvResponse } from "@/lib/csv";
-import { formatDayDate } from "@/lib/datetime";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 import { asOfSemester, loadDayAttendance, loadRoster, type StudentSummary } from "@/lib/reports";
 import { isEventForStudent, type EventTargets } from "@/lib/eligibility";
@@ -33,13 +33,12 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/seme
     .sort((a, b) => a.day.sign_in_start.localeCompare(b.day.sign_in_start));
 
   const byDay = await loadDayAttendance(admin, columns.map((c) => c.day.id));
+  const dayById = new Map(columns.map((c) => [c.day.id, c.day]));
   const status = new Map<string, string>(); // `${dayId}:${profileId}` → cell
   for (const [dayId, rows] of byDay) {
+    const day = dayById.get(dayId) ?? {};
     for (const r of rows) {
-      status.set(
-        `${dayId}:${r.student.id}`,
-        r.signIn && r.signOut ? "Present" : r.signIn ? "No sign-out" : "No sign-in"
-      );
+      status.set(`${dayId}:${r.student.id}`, isComplete(r, day) ? "Present" : r.signIn ? "No sign-out" : "No sign-in");
     }
   }
 
@@ -62,7 +61,7 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/seme
       "Name",
       "Program",
       "Year",
-      ...columns.map((c) => `${c.title} (${formatDayDate(c.day.day_date, "numeric")})`),
+      ...columns.map((c) => `${c.title} (${slotLabel(c.day, "numeric")})`),
       "Days present",
       "Required days",
     ],

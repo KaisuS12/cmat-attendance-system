@@ -73,6 +73,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Graduated students no longer sign in to events." }, { status: 403 });
   }
 
+  if (type === "sign_out" && eventDay.sign_out_required === false) {
+    return NextResponse.json({ error: "This session has no sign-out. Signing in is enough." }, { status: 409 });
+  }
+
   if (!isEventForStudent(eventDay.events, profile)) {
     return NextResponse.json(
       { error: `This event is only for ${describeTargets(eventDay.events)}.` },

@@ -67,3 +67,20 @@ describe("past semesters after a promotion", () => {
     expect(asOfSemester(now, null)).toBe(now);
   });
 });
+
+describe("isComplete", () => {
+  it("needs sign-out only when the slot requires it", async () => {
+    const { isComplete } = await import("@/lib/attendance-status");
+    expect(isComplete({ signIn: {}, signOut: null }, { sign_out_required: true })).toBe(false);
+    expect(isComplete({ signIn: {}, signOut: null }, { sign_out_required: false })).toBe(true);
+    expect(isComplete({ signIn: null, signOut: null }, { sign_out_required: false })).toBe(false);
+    expect(isComplete({ signIn: {}, signOut: {} }, {})).toBe(true);
+  });
+
+  it("skips sign-out window checks for sign-in-only slots", async () => {
+    const { dayWindowProblem } = await import("@/lib/windows");
+    const w = { signInStart: "2026-10-23T07:30:00+08:00", signInEnd: "2026-10-23T08:30:00+08:00", signOutStart: "2026-10-23T08:30:00+08:00", signOutEnd: "2026-10-23T08:30:00+08:00" };
+    expect(dayWindowProblem(w)?.field).toBe("signOutEnd");
+    expect(dayWindowProblem(w, false)).toBeNull();
+  });
+});

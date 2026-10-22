@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isComplete, slotLabel } from "@/lib/attendance-status";
 import { csvResponse } from "@/lib/csv";
-import { formatDayDate, formatDateTime } from "@/lib/datetime";
+import { formatDateTime } from "@/lib/datetime";
 import { loadDayAttendance } from "@/lib/reports";
 import type { EventDay } from "@/types/database";
 
@@ -21,7 +22,9 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/even
     .single<{ title: string; event_days: EventDay[] }>();
   if (!event) return NextResponse.json({ error: "Event not found." }, { status: 404 });
 
-  const days = [...event.event_days].sort((a, b) => a.day_date.localeCompare(b.day_date));
+  const days = [...event.event_days].sort(
+    (a, b) => a.day_date.localeCompare(b.day_date) || a.sign_in_start.localeCompare(b.sign_in_start)
+  );
   const byDay = await loadDayAttendance(admin, days.map((d) => d.id));
 
   const rows: (string | null)[][] = [
@@ -45,14 +48,14 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/even
         .map((e) => e!.reason)
         .join("; ");
       rows.push([
-        formatDayDate(day.day_date, "numeric"),
+        slotLabel(day, "numeric"),
         r.student.student_id,
         r.student.full_name,
         r.student.program,
         r.student.year_level,
         r.signIn ? formatDateTime(r.signIn.at) : "",
-        r.signOut ? formatDateTime(r.signOut.at) : "",
-        r.signIn && r.signOut ? "Complete" : r.signIn ? "No sign-out" : "No sign-in",
+        r.signOut ? formatDateTime(r.signOut.at) : day.sign_out_required ? "" : "Not required",
+        isComplete(r, day) ? "Complete" : r.signIn ? "No sign-out" : "No sign-in",
         reasons,
       ]);
     }

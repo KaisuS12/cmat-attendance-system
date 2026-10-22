@@ -32,6 +32,8 @@ export async function POST(request: Request, { params }: RouteContext<"/api/even
       sign_out_end: day.signOutEnd,
       title: day.title || null,
       venue_id: venueId,
+      session: day.session,
+      sign_out_required: day.signOutRequired,
     })
     .select("*")
     .single();
@@ -39,7 +41,11 @@ export async function POST(request: Request, { params }: RouteContext<"/api/even
   if (insertError || !data) {
     const duplicate = insertError?.code === "23505";
     return NextResponse.json(
-      { error: duplicate ? "This event already has a day on that date." : "Could not add the day." },
+      {
+        error: duplicate
+          ? "This event already has that date (and session). Give the new one a different session name."
+          : "Could not add the day.",
+      },
       { status: duplicate ? 409 : 500 }
     );
   }
