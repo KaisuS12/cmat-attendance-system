@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   AFTERNOON,
   DAY_ALL_TIMES,
@@ -14,7 +15,7 @@ import {
   type SlotTimes,
 } from "@/components/DayWindowFields";
 import { emptyVenue, SAME_VENUE, VenuePicker, venueToPayload, type VenueValue } from "@/components/VenuePicker";
-import { formatDayDate } from "@/lib/datetime";
+import { formatDayDate, localInputToIso } from "@/lib/datetime";
 import type { Venue } from "@/types/database";
 
 // One day of an event: an optional title, the date, one or more attendance
@@ -117,6 +118,16 @@ export function DayCard({
   }
 
   const multi = value.sessions.length > 1;
+
+  // Sessions whose last window already closed go straight to "Past events",
+  // where nobody can sign in, so say so before the event is created.
+  const [openedAt] = useState(() => Date.now());
+  const ended = date
+    ? value.sessions.filter((s) => {
+        const last = localInputToIso(s.signOutRequired === false ? s.signInEnd : s.signOutEnd);
+        return last !== null && new Date(last).getTime() < openedAt;
+      })
+    : [];
 
   return (
     <div className="rounded-lg bg-slate-50 p-3">
@@ -231,6 +242,14 @@ export function DayCard({
             {value.sessions
               .map((s) => `${s.session.trim() ? `${s.session.trim()}: ` : ""}${describeSlot({ ...s, dayDate: date })}`)
               .join(" · ")}
+          </p>
+        )}
+
+        {ended.length > 0 && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800" role="alert">
+            ⚠ {ended.length === value.sessions.length ? "These times have" : "Some of these times have"} already passed.
+            The event will go straight to <strong>Past events</strong> and nobody can sign in. Check the date and
+            times.
           </p>
         )}
 
