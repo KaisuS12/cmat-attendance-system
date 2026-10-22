@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
 <title>NAM Event-Day Demo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,6 +21,8 @@
   --bad: #c22b2b;
   --bad-soft: #fde8e8;
   --phone: #0b1224;
+  --phone-max: 290px;
+  --chrome: 250px; /* header + controls height, so phones fit the screen */
   --font: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
@@ -55,7 +57,7 @@ header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
 .who { font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .who i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .phone {
-  width: min(100%, 270px); aspect-ratio: 9 / 18.5; background: var(--phone); border-radius: 34px; padding: 9px;
+  width: min(100%, max(200px, min(var(--phone-max), calc((100dvh - var(--chrome)) * 0.486)))); aspect-ratio: 9 / 18.5; background: var(--phone); border-radius: 34px; padding: 9px;
   box-shadow: 0 18px 40px -18px rgba(8, 20, 50, .55), inset 0 0 0 2px #26324f; container-type: inline-size; position: relative;
 }
 .screen { position: relative; width: 100%; height: 100%; border-radius: 26px; overflow: hidden; background: #fff; color: #0f1d3d; font-size: 5.1cqw; }
@@ -198,12 +200,44 @@ header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
 .foot { color: var(--muted); font-size: .8rem; text-align: center; }
 
 .paused * { animation-play-state: paused !important; }
-@media (max-width: 760px) {
+.viewtabs { display: none; }
+@media (min-width: 1400px) { :root { --phone-max: 340px; } .wrap { max-width: 1240px; } .rail h2 { font-size: 1.6rem; } .rail p { font-size: 1.05rem; } }
+@media (max-width: 900px) and (min-width: 641px) {
   .stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .rail { grid-column: 1 / -1; grid-row: 1; text-align: center; }
   .flow { display: none; }
-  .phone { border-radius: 26px; padding: 6px; }
-  .screen { border-radius: 20px; }
+}
+/* Phones: one device at a time, following the action; controls pinned to the bottom. */
+@media (max-width: 640px) {
+  :root { --chrome: 330px; --phone-max: 300px; }
+  body { padding-block: 12px 0; }
+  header.top img { width: 32px; height: 32px; }
+  header.top h1 { font-size: 1.1rem; }
+  header.top p { display: none; }
+  .tag { margin-left: 0; }
+  .stage { grid-template-columns: minmax(0, 1fr); gap: 10px; touch-action: pan-y; }
+  .rail { grid-row: 1; text-align: center; gap: 6px; }
+  .rail h2 { font-size: 1.15rem; }
+  .rail p { font-size: .88rem; }
+  .flow { display: none; }
+  .device { display: none; }
+  .device.focus { display: grid; }
+  .phone { border-radius: 30px; padding: 7px; }
+  .screen { border-radius: 23px; }
+  .viewtabs { display: flex; justify-self: center; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+  .viewtabs button { font: inherit; font-size: .8rem; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+  .viewtabs button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+  .controls { position: sticky; bottom: 0; z-index: 40; background: var(--bg); border-top: 1px solid var(--line); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)); gap: 6px; }
+  .controls button { padding: 10px 12px; flex: 1; }
+  .controls label { display: none; }
+  .steps { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+  .steps li { flex: 0 0 auto; scroll-snap-align: start; }
+  .steps button { white-space: nowrap; }
+  .foot { order: 9; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --chrome: 120px; }
+  .rail p { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
@@ -221,7 +255,7 @@ header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
   </header>
 
   <section class="stage" aria-label="Demo">
-    <div class="device">
+    <div class="device focus" id="dev-student">
       <div class="who"><i style="background:#1e4a9c"></i>Student's phone</div>
       <div class="phone"><div class="notch"></div><div class="screen" id="student"></div></div>
     </div>
@@ -232,9 +266,14 @@ header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
       <p id="desc"></p>
       <div class="flow idle" id="flow"><svg viewBox="0 0 300 26" preserveAspectRatio="none"><path d="M6 13 H294 M282 4 L294 13 L282 22"/></svg></div>
       <div class="progress"><i id="prog"></i></div>
+      <div class="viewtabs" role="group" aria-label="Which phone to show">
+        <button type="button" data-v="auto" aria-pressed="true">Follow action</button>
+        <button type="button" data-v="student" aria-pressed="false">Student</button>
+        <button type="button" data-v="officer" aria-pressed="false">Officer</button>
+      </div>
     </div>
 
-    <div class="device">
+    <div class="device" id="dev-officer">
       <div class="who"><i style="background:#f9cb1e"></i>Officer's phone</div>
       <div class="phone"><div class="notch"></div><div class="screen" id="officer"></div></div>
     </div>
@@ -264,10 +303,13 @@ header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
   // ---------- helpers ----------
   const status = (time) => `<div class="status"><span>${time}</span><span>📶 🔋</span></div>`;
   const appbar = `<div class="appbar"><img src="${LOGO}" alt=""><div>NAM <span>·</span> CMAT Attendance</div></div>`;
-  const show = (el, html, dark = false) => { el.classList.toggle("dark", dark); el.innerHTML = `<div class="view">${html}</div>`; };
+  let active = "student", pinned = null;
+  const applyFocus = () => { const v = pinned || active; document.getElementById("dev-student").classList.toggle("focus", v === "student"); document.getElementById("dev-officer").classList.toggle("focus", v === "officer"); };
+  const focusOn = (el) => { active = el === $o ? "officer" : "student"; applyFocus(); };
+  const show = (el, html, dark = false) => { el.classList.toggle("dark", dark); el.innerHTML = `<div class="view">${html}</div>`; focusOn(el); };
   const q = (el, sel) => el.querySelector(sel);
   function tap(el, sel) {
-    const target = q(el, sel); if (!target) return;
+    const target = q(el, sel); if (!target) return; focusOn(el);
     const a = el.getBoundingClientRect(), b = target.getBoundingClientRect();
     const t = document.createElement("div"); t.className = "tap";
     t.style.left = (b.left - a.left + b.width / 2) + "px"; t.style.top = (b.top - a.top + b.height / 2) + "px";
@@ -337,9 +379,9 @@ header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
       <div class="guides"><i></i><i></i><i></i><i></i></div><div class="beam"></div>
       <div class="held" id="held"><canvas id="hc"></canvas></div>
       <div class="dock"><div id="dm"><b>✍︎</b>Manual</div><div><b>☀︎</b>Light</div><div><b>⟲</b>Flip</div><div><b>☰</b>Recent</div></div>`, true),
-    result: (ok, k, n, d) => { const r = document.createElement("div"); r.className = "result " + (ok ? "ok" : "bad"); r.innerHTML = `<div class="k">${k}</div><div class="n">${n}</div><div class="d">${d}</div>`; q($o, ".view").appendChild(r); const b = q($o, ".beam"); if (b) b.remove(); },
-    hold: (seed, shot) => { const h = q($o, "#held"); drawQR(q($o, "#hc"), seed); h.classList.toggle("shot", !!shot); h.classList.add("in"); },
-    manual: () => { const sh = document.createElement("div"); sh.className = "sheet"; sh.innerHTML = `<div class="grab"></div>
+    result: (ok, k, n, d) => { focusOn($o); const r = document.createElement("div"); r.className = "result " + (ok ? "ok" : "bad"); r.innerHTML = `<div class="k">${k}</div><div class="n">${n}</div><div class="d">${d}</div>`; q($o, ".view").appendChild(r); const b = q($o, ".beam"); if (b) b.remove(); },
+    hold: (seed, shot) => { focusOn($o); const h = q($o, "#held"); drawQR(q($o, "#hc"), seed); h.classList.toggle("shot", !!shot); h.classList.add("in"); },
+    manual: () => { focusOn($o); const sh = document.createElement("div"); sh.className = "sheet"; sh.innerHTML = `<div class="grab"></div>
       <div class="h">Manual entry · Sign in</div>
       <div class="field">Search student<div class="input caret" id="ms" style="font-family:var(--font)"></div></div>
       <div class="list" id="ml"></div>
@@ -461,12 +503,21 @@ header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
   // ---------- player ----------
   const stepsEl = document.getElementById("steps");
   SCENES.forEach((sc, i) => { const li = document.createElement("li"); li.innerHTML = `<button type="button"><span>${String(i + 1).padStart(2, "0")}</span>${sc.name}</button>`; li.firstChild.addEventListener("click", () => go(i)); stepsEl.appendChild(li); });
+  const tabs = [...document.querySelectorAll(".viewtabs button")];
+  function setPin(v) { pinned = v; tabs.forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.v === "auto" && !v) || b.dataset.v === v))); applyFocus(); }
+  tabs.forEach((b) => b.addEventListener("click", () => setPin(b.dataset.v === "auto" ? null : b.dataset.v)));
+  // Swipe left/right on the phones to change steps.
+  let sx = null, sy = 0;
+  const stage = document.querySelector(".stage");
+  stage.addEventListener("touchstart", (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  stage.addEventListener("touchend", (e) => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(scene + (dx < 0 ? 1 : -1)); }, { passive: true });
   const playBtn = document.getElementById("play"), prog = document.getElementById("prog");
   let scene = 0, t = 0, fired = 0, playing = true, last = null, speed = 1;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function go(i) {
-    scene = Math.max(0, Math.min(SCENES.length - 1, i)); t = 0; fired = 0;
+    scene = Math.max(0, Math.min(SCENES.length - 1, i)); t = 0; fired = 0; setPin(null);
+    const cur = stepsEl.children[scene]; if (cur && stepsEl.scrollWidth > stepsEl.clientWidth) stepsEl.scrollTo({ left: cur.offsetLeft - 16, behavior: "smooth" });
     const sc = SCENES[scene];
     document.getElementById("stepno").textContent = `STEP ${scene + 1} OF ${SCENES.length}`;
     document.getElementById("title").textContent = sc.name;
