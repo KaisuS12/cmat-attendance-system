@@ -64,9 +64,7 @@ function useLoginSplash() {
 }
 
 export function LoginForm({ notice }: { notice: string | null }) {
-  const [tab, setTab] = useState<"student" | "staff">("student");
-  const [studentId, setStudentId] = useState("");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(notice);
   const [loading, setLoading] = useState(false);
@@ -78,7 +76,11 @@ export function LoginForm({ notice }: { notice: string | null }) {
     setLoading(true);
 
     const supabase = createClient();
-    const loginEmail = tab === "student" ? studentIdToEmail(studentId) : email.trim();
+    // One box for everyone: an email means an officer or admin, anything
+    // else is a student ID (students sign in with an email built from it).
+    // After login, the proxy sends each person to their own home by role.
+    const id = identifier.trim();
+    const loginEmail = id.includes("@") ? id : studentIdToEmail(id);
 
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: loginEmail,
@@ -94,9 +96,7 @@ export function LoginForm({ notice }: { notice: string | null }) {
           ? "This account isn't activated yet. Contact the council admin."
           : authError.status === 429
           ? "Too many attempts. Wait a minute and try again."
-          : tab === "student"
-          ? "Incorrect student ID or password."
-          : "Incorrect email or password."
+          : "Incorrect student ID / email or password."
       );
       return;
     }
@@ -144,60 +144,29 @@ export function LoginForm({ notice }: { notice: string | null }) {
         <div className="splash-content overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="h-1 bg-gradient-to-r from-gold-500 via-gold-400 to-gold-300" aria-hidden="true" />
           <div className="p-6 sm:p-8">
-          <div className="flex rounded-lg bg-brand-50 p-1 text-sm" role="tablist">
-            {(["student", "staff"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={tab === t}
-                onClick={() => {
-                  setTab(t);
-                  setError(null);
-                }}
-                className={`flex-1 rounded-md py-1.5 font-medium transition ${
-                  tab === t ? "bg-white font-semibold text-brand-800 shadow-sm ring-1 ring-gold-400" : "text-slate-500"
-                }`}
-              >
-                {t === "student" ? "Student" : "Officer / Admin"}
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            {tab === "student" ? (
-              <div>
-                <label htmlFor="studentId" className={labelClass}>
-                  Student ID
-                </label>
-                <input
-                  id="studentId"
-                  required
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  className={`${inputClass} mt-1`}
-                  placeholder="e.g. 21-00123"
-                />
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="email" className={labelClass}>
-                  School email
-                </label>
-                <input
-                  id="email"
-                  required
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`${inputClass} mt-1`}
-                  placeholder="you@school.edu.ph"
-                />
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="identifier" className={labelClass}>
+                Student ID or email
+              </label>
+              <input
+                id="identifier"
+                required
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                inputMode="email"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                className={`${inputClass} mt-1`}
+                placeholder="e.g. NAM26-0042 or you@school.edu.ph"
+                aria-describedby="identifier-hint"
+              />
+              <p id="identifier-hint" className="mt-1 text-xs text-slate-400">
+                Students: the student ID on your slip. Officers and admins: your email.
+              </p>
+            </div>
 
             <div>
               <label htmlFor="password" className={labelClass}>
