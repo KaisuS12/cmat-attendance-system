@@ -92,6 +92,13 @@ export function formatClock(hhmm: string): string {
 
 const timeOf = (v: string) => v.slice(11, 16);
 
+/** "07:30" → "08:30"; stays on the same day (at most 23:59). */
+export function addHour(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = Math.min(h * 60 + m + 60, 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
 /** "in 7:30–8:30 AM, out 4:00–5:00 PM", or "in 7:30–8:30 AM (sign-in only)". */
 export function describeSlot(value: DayInput): string {
   const range = (a: string, b: string) => `${formatClock(timeOf(a))}–${formatClock(timeOf(b))}`;
@@ -125,8 +132,15 @@ export function DayWindowFields({
 
   // Times are picked on their own; the date comes from the day (each field
   // keeps its own date when editing an existing day).
-  const setTime = (key: TimeField, time: string) =>
-    onChange({ ...value, [key]: time ? `${value[key].slice(0, 10) || date}T${time}` : "" });
+  const setTime = (key: TimeField, time: string) => {
+    const at = (k: TimeField, t: string) => (t ? `${value[k].slice(0, 10) || date}T${t}` : "");
+    const next = { ...value, [key]: at(key, time) };
+    // Setting when a window opens closes it one hour later; the close time
+    // can still be changed after.
+    const closeKey = key === "signInStart" ? "signInEnd" : key === "signOutStart" ? "signOutEnd" : null;
+    if (closeKey && time) next[closeKey] = at(closeKey, addHour(time));
+    onChange(next);
+  };
 
   const presets: { label: string; apply: () => void }[] = [
     { label: "Whole day", apply: () => onChange({ ...withTimes(value, DEFAULT_TIMES, date), signOutRequired: true }) },

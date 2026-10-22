@@ -48,3 +48,12 @@ describe("dayCardToPayloads", () => {
     if (!p.ok) expect(p.message).toMatch(/^Day 1: give each session a name/);
   });
 });
+
+describe("addHour", () => {
+  it("closes a window one hour after it opens, within the same day", async () => {
+    const { addHour } = await import("@/components/DayWindowFields");
+    expect(addHour("07:30")).toBe("08:30");
+    expect(addHour("12:45")).toBe("13:45");
+    expect(addHour("23:30")).toBe("23:59");
+  });
+});
