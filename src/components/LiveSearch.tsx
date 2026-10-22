@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { inputClass } from "@/components/ui";
 
 // Search-as-you-type: after a short pause, updates ?q= in the URL with a
@@ -10,6 +10,7 @@ import { inputClass } from "@/components/ui";
 export function LiveSearch({ initialQuery, placeholder }: { initialQuery: string; placeholder: string }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [value, setValue] = useState(initialQuery);
   const [pending, startTransition] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -23,8 +24,12 @@ export function LiveSearch({ initialQuery, placeholder }: { initialQuery: string
     const q = next.trim();
     if (q === last.current) return;
     last.current = q;
-    const params = new URLSearchParams();
-    if (q) params.set("q", q); // a new search starts back on page 1
+    // Keep other filters (e.g. the course buttons); a new search starts back
+    // on page 1.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    if (q) params.set("q", q);
+    else params.delete("q");
     startTransition(() => {
       router.replace(params.size ? `${pathname}?${params}` : pathname, { scroll: false });
     });

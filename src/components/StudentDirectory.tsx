@@ -3,10 +3,53 @@ import { createClient } from "@/lib/supabase/server";
 import { AccountActions } from "@/components/AccountActions";
 import { TempPasswordReveal } from "@/components/TempPasswordReveal";
 import { LiveSearch } from "@/components/LiveSearch";
+import { CourseFilter, type CourseCount } from "@/components/CourseFilter";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { Badge, btnSecondary, EmptyState } from "@/components/ui";
 import type { Profile } from "@/types/database";
 
 const PAGE_SIZE = 50;
+
+// Course buttons: every program on current (not graduated) students, with
+// counts per year. Computed from the data, so a newly imported course
+// appears by itself.
+async function loadCourseCounts(supabase: Awaited<ReturnType<typeof createClient>>): Promise<{ courses: CourseCount[]; total: number }> {
+  try {
+    const rows = await fetchAll<{ program: string | null; year_level: string | null }>((from, to) =>
+      supabase
+        .from("profiles")
+        .select("program, year_level")
+        .eq("role", "student")
+        .is("graduated_at", null)
+        .order("id")
+        .range(from, to)
+    );
+    const byProgram = new Map<string, Map<string, number>>();
+    for (const r of rows) {
+      const program = (r.program ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+      if (!program) continue;
+      const years = byProgram.get(program) ?? new Map<string, number>();
+      const year = (r.year_level ?? "").trim();
+      if (year) years.set(year, (years.get(year) ?? 0) + 1);
+      byProgram.set(program, years);
+    }
+    const courses = [...byProgram.entries()]
+      .map(([program, years]) => ({
+        program,
+        count: rows.filter((r) => (r.program ?? "").trim().replace(/\s+/g, " ").toUpperCase() === program).length,
+        years: [...years.entries()]
+          .map(([year, count]) => ({ year, count }))
+          .sort((a, b) => a.year.localeCompare(b.year, undefined, { numeric: true })),
+      }))
+      .sort((a, b) => a.program.localeCompare(b.program));
+    return { courses, total: rows.length };
+  } catch {
+    return { courses: [], total: 0 };
+  }
+}
+
+// ilike without wildcards: an exact, case-insensitive match.
+const exactIlike = (v: string) => v.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 function groupLabel(s: Profile) {
   return [s.program, s.year_level].filter(Boolean).join(" ");
@@ -18,11 +61,15 @@ export async function StudentDirectory({
   basePath,
   q,
   page,
+  program = "",
+  year = "",
   mode,
 }: {
   basePath: string;
   q: string;
   page: number;
+  program?: string;
+  year?: string;
   mode: "admin" | "officer";
 }) {
   const supabase = await createClient();
@@ -39,10 +86,20 @@ export async function StudentDirectory({
       `student_id.ilike.%${term}%,full_name.ilike.%${term}%,program.ilike.%${term}%`
     );
 
-  const { data, count } = await query;
+  if (program) query = query.ilike("program", exactIlike(program));
+  if (program && year) query = query.eq("year_level", year);
+
+  const [{ data, count }, { courses, total }] = await Promise.all([query, loadCourseCounts(supabase)]);
   const students = (data ?? []) as Profile[];
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
-  const pageHref = (p: number) => `${basePath}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`;
+  const pageHref = (p: number) =>
+    `${basePath}?${new URLSearchParams({
+      ...(q ? { q } : {}),
+      ...(program ? { program } : {}),
+      ...(program && year ? { year } : {}),
+      page: String(p),
+    })}`;
+  const filtered = [program, program && year ? `year ${year}` : ""].filter(Boolean).join(" · ");
 
   const actions = (s: Profile) =>
     mode === "officer" ? (
@@ -62,14 +119,16 @@ export async function StudentDirectory({
   return (
     <div>
       <p className="text-sm text-slate-500">
-        {count ?? 0} {q ? "matching" : "total"}
+        {count ?? 0} {q ? "matching" : filtered ? `in ${filtered}` : "total"}
       </p>
+
+      <CourseFilter basePath={basePath} q={q} program={program} year={year} courses={courses} total={total} />
 
       <LiveSearch initialQuery={q} placeholder="Search by name, student ID or program" />
 
       <div className="mt-4">
         {students.length === 0 ? (
-          <EmptyState>{q ? "No students match your search." : "No students yet."}</EmptyState>
+          <EmptyState>{q || program ? "No students match." : "No students yet."}</EmptyState>
         ) : (
           <>
             {/* Phones: cards */}
@@ -176,6 +235,8 @@ export async function StudentDirectory({
 
 export function parseDirectoryParams(params: Record<string, string | string[] | undefined>) {
   const q = typeof params.q === "string" ? params.q.trim() : "";
+  const program = typeof params.program === "string" ? params.program.trim().slice(0, 40) : "";
+  const year = typeof params.year === "string" ? params.year.trim().slice(0, 10) : "";
   const page = Math.max(1, Number(typeof params.page === "string" ? params.page : 1) || 1);
-  return { q, page };
+  return { q, page, program, year };
 }

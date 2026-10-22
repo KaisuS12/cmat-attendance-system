@@ -6,7 +6,7 @@ import { btnPrimary, PageTitle } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 export default async function StudentsPage({ searchParams }: PageProps<"/admin/students">) {
-  const { q, page } = parseDirectoryParams(await searchParams);
+  const filters = parseDirectoryParams(await searchParams);
 
   return (
     <div>
@@ -22,7 +22,7 @@ export default async function StudentsPage({ searchParams }: PageProps<"/admin/s
         <AddStudentForm />
       </div>
       <div className="mt-4">
-        <StudentDirectory basePath="/admin/students" q={q} page={page} mode="admin" />
+        <StudentDirectory basePath="/admin/students" {...filters} mode="admin" />
       </div>
     </div>
   );
