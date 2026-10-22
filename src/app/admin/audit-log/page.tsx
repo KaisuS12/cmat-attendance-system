@@ -30,6 +30,7 @@ const ACTION_LABELS: Record<string, string> = {
   temp_password_viewed: "Viewed temporary password",
   admin_account_created: "Created admin",
   role_changed: "Changed role",
+  student_devices_reset: "Reset student phones",
   sign_out_cancelled: "Cancelled sign-out",
   sign_out_restored: "Turned sign-out back on",
   staff_deleted: "Deleted officer account",

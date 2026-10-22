@@ -101,6 +101,21 @@ export function LoginForm({ notice }: { notice: string | null }) {
       return;
     }
 
+    // Student accounts work on at most 2 phones, and a phone for only one
+    // student; if this phone isn't allowed, sign back out and say why.
+    try {
+      const res = await fetch("/api/auth/device", { method: "POST" });
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        await supabase.auth.signOut();
+        setLoading(false);
+        setError(data.error ?? "This phone can't be used for this account. Ask a council officer.");
+        return;
+      }
+    } catch {
+      // Network hiccup: the same check runs again when a QR is generated.
+    }
+
     // Full navigation (not router.refresh()) so proxy.ts re-runs server-side
     // and redirects to the right role home — also sidesteps a Turbopack dev
     // quirk where the RSC refresh fetch intermittently fails right after auth.

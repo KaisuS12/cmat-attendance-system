@@ -1,4 +1,6 @@
 import { after, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { checkStudentDevice, DEVICE_COOKIE, deviceCookieOptions, newDeviceId } from "@/lib/devices";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -72,6 +74,15 @@ export async function POST(request: Request) {
   if (profile.graduated_at) {
     return NextResponse.json({ error: "Graduated students no longer sign in to events." }, { status: 403 });
   }
+
+  // One account per phone, at most 2 phones per account (lib/devices.ts):
+  // stops a friend at the venue signing in for an absent classmate.
+  // Students logged in before this check existed get their phone id now.
+  const existingDeviceId = (await cookies()).get(DEVICE_COOKIE)?.value;
+  const deviceId = existingDeviceId ?? newDeviceId();
+  if (!existingDeviceId) (await cookies()).set(DEVICE_COOKIE, deviceId, deviceCookieOptions);
+  const deviceCheck = await checkStudentDevice(admin, profile.id, deviceId, request.headers.get("user-agent"));
+  if (!deviceCheck.ok) return NextResponse.json({ error: deviceCheck.message }, { status: 403 });
 
   if (type === "sign_out" && eventDay.sign_out_required === false) {
     return NextResponse.json({ error: "This session has no sign-out. Signing in is enough." }, { status: 409 });

@@ -7,7 +7,7 @@ import { PrintSlipsButton } from "@/components/CredentialSlips";
 import { btnDanger, btnSecondary } from "@/components/ui";
 import type { SlipCredential } from "@/lib/slips";
 
-type Pending = "reset" | "deactivate" | null;
+type Pending = "reset" | "deactivate" | "phones" | null;
 
 // Account actions on a student or officer: reset password (shows the new
 // temporary password once, printable as a slip for students) and — for
@@ -75,6 +75,28 @@ export function AccountActions({
     }
   }
 
+  const [phonesNote, setPhonesNote] = useState<string | null>(null);
+
+  // Students only: forget the phones on this account (new or lost phone).
+  async function resetPhones() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/users/${userId}/devices`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Could not reset phones.");
+        return;
+      }
+      setPending(null);
+      setPhonesNote(`Phones reset. ${name} can now log in on their new phone.`);
+    } catch {
+      setError("Network error — try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const small = "min-h-9 px-3 py-1.5 text-xs";
 
   return (
@@ -90,6 +112,19 @@ export function AccountActions({
         >
           Reset password
         </button>
+        {slip && (
+          <button
+            onClick={() => {
+              setError(null);
+              setPhonesNote(null);
+              setPending("phones");
+            }}
+            disabled={busy}
+            className={`${btnSecondary} ${small}`}
+          >
+            Reset phones
+          </button>
+        )}
         {canDeactivate &&
           (isActive ? (
             <button
@@ -123,7 +158,19 @@ export function AccountActions({
           )}
         </div>
       )}
+      {phonesNote && <p className="max-w-xs text-right text-xs text-emerald-700">{phonesNote}</p>}
       {error && pending === null && <p className="text-xs text-red-600">{error}</p>}
+
+      <ConfirmDialog
+        open={pending === "phones"}
+        title={`Reset ${name}'s phones?`}
+        message="Each student account works on up to 2 phones. This forgets them all, so the next phone they log in on is accepted. Use it when a student changed or lost their phone. Check it's really them first."
+        confirmLabel="Reset phones"
+        busy={busy}
+        error={error}
+        onConfirm={resetPhones}
+        onCancel={() => setPending(null)}
+      />
 
       <ConfirmDialog
         open={pending === "reset"}
