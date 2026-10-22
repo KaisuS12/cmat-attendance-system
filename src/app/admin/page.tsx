@@ -34,7 +34,7 @@ export default async function AdminDashboard() {
 
   const [{ count: studentCount }, { count: officerCount }, { count: eventCount }, { data: activeSemester }] =
     await Promise.all([
-      supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
+      supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student").is("graduated_at", null),
       supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "officer"),
       supabase.from("events").select("*", { count: "exact", head: true }),
       supabase.from("semesters").select("id, name, is_active").eq("is_active", true).maybeSingle(),

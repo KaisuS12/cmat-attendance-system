@@ -17,6 +17,7 @@ export async function GET(request: Request) {
     .from("profiles")
     .select("id, student_id, full_name, program, year_level, section")
     .eq("role", "student")
+    .is("graduated_at", null)
     .or(`student_id.ilike.%${term}%,full_name.ilike.%${term}%`)
     .order("full_name")
     .limit(10);

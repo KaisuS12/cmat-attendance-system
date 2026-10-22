@@ -97,18 +97,56 @@ export function sectionLabel(s: Pick<StudentSummary, "program" | "year_level">):
   return [s.program, s.year_level].filter(Boolean).join(" ") || "Unassigned";
 }
 
-// Every active student the event is meant for (all students when untargeted).
-export async function loadEligibleStudents(client: SupabaseClient, event: EventTargets): Promise<StudentSummary[]> {
-  const students = await fetchAll<StudentSummary & { is_active: boolean | null }>((from, to) =>
-    client
-      .from("profiles")
-      .select("id, student_id, full_name, program, year_level, section, is_active")
-      .eq("role", "student")
-      .order("full_name")
-      .order("id")
-      .range(from, to)
-  );
-  return students.filter((s) => s.is_active !== false && isEventForStudent(event, s));
+// A semester's frozen class list: each student's program/year as they were
+// then (saved when a new school year starts). Null when the semester has
+// none yet, meaning current program/year still apply.
+export type Roster = Map<string, { program: string | null; year_level: string | null }>;
+
+export async function loadRoster(client: SupabaseClient, semesterId: string | null | undefined): Promise<Roster | null> {
+  if (!semesterId) return null;
+  try {
+    const rows = await fetchAll<{ profile_id: string; program: string | null; year_level: string | null }>((from, to) =>
+      client
+        .from("semester_roster")
+        .select("profile_id, program, year_level")
+        .eq("semester_id", semesterId)
+        .order("profile_id")
+        .range(from, to)
+    );
+    if (rows.length === 0) return null;
+    return new Map(rows.map((r) => [r.profile_id, { program: r.program, year_level: r.year_level }]));
+  } catch {
+    return null; // e.g. the school-year migration hasn't been run yet
+  }
+}
+
+/** The student as they were in that semester (unchanged when there's no roster entry). */
+export function asOfSemester<T extends { id: string; program: string | null; year_level: string | null }>(
+  student: T,
+  roster: Roster | null
+): T {
+  const then = roster?.get(student.id);
+  return then ? { ...student, program: then.program, year_level: then.year_level } : student;
+}
+
+// Every student the event is meant for (all students when untargeted).
+// Events in a semester with a frozen class list use it, so a past event
+// still counts the students it was meant for back then (graduates
+// included). Otherwise: current, active, not-graduated students.
+export async function loadEligibleStudents(
+  client: SupabaseClient,
+  event: EventTargets & { semester_id?: string | null }
+): Promise<StudentSummary[]> {
+  const [students, roster] = await Promise.all([
+    fetchAll<StudentSummary & { is_active?: boolean | null; graduated_at?: string | null }>((from, to) =>
+      client.from("profiles").select("*").eq("role", "student").order("full_name").order("id").range(from, to)
+    ),
+    loadRoster(client, event.semester_id),
+  ]);
+  const pool = roster
+    ? students.filter((s) => roster.has(s.id)).map((s) => asOfSemester(s, roster))
+    : students.filter((s) => s.is_active !== false && !s.graduated_at);
+  return pool.filter((s) => isEventForStudent(event, s));
 }
 
 // Expected / missing / per-group (program + year) figures for one event day.
@@ -367,7 +405,7 @@ export async function loadSemesterAnalytics(
   );
   const [byDay, students] = await Promise.all([
     loadDayAttendance(client, finishedDayIds),
-    loadEligibleStudents(client, { target_programs: null, target_year_levels: null }),
+    loadEligibleStudents(client, { target_programs: null, target_year_levels: null, semester_id: semester.id }),
   ]);
 
   return computeSemesterAnalytics({ events, byDay, students, now });

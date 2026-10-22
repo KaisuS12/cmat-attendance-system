@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { AddSemesterForm } from "@/components/AddSemesterForm";
+import { SchoolYearCard, type RecentPromotion } from "@/components/SchoolYearCard";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requestTime } from "@/lib/datetime";
 import { SetActiveSemesterButton } from "@/components/SetActiveSemesterButton";
 import { Badge, btnSecondary, EmptyState, PageTitle } from "@/components/ui";
 import { formatDayDate } from "@/lib/datetime";
@@ -11,6 +14,26 @@ export default async function SemestersPage() {
   const supabase = await createClient();
   const { data } = await supabase.from("semesters").select("*").order("start_date", { ascending: false });
   const semesters = (data ?? []) as Semester[];
+
+  // The latest promotion, if it can still be undone (24 hours). The table is
+  // service-role only; this page is admin-only (see admin layout).
+  const { data: last } = await createAdminClient()
+    .from("year_promotions")
+    .select("id, created_at, changes")
+    .is("undone_at", null)
+    .gt("created_at", new Date(requestTime() - 24 * 60 * 60 * 1000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const changes = (last?.changes ?? []) as { graduated: boolean }[];
+  const recent: RecentPromotion | null = last
+    ? {
+        id: last.id,
+        createdAt: last.created_at,
+        promoted: changes.filter((c) => !c.graduated).length,
+        graduating: changes.filter((c) => c.graduated).length,
+      }
+    : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -48,6 +71,8 @@ export default async function SemestersPage() {
           ))
         )}
       </div>
+
+      <SchoolYearCard semesters={semesters.map(({ id, name, is_active }) => ({ id, name, is_active }))} recent={recent} />
     </div>
   );
 }

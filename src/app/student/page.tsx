@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/session";
 import { AttendanceAction } from "@/components/AttendanceAction";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { Badge, EmptyState, PageTitle } from "@/components/ui";
+import Link from "next/link";
+import { Badge, btnPrimary, EmptyState, PageTitle } from "@/components/ui";
 import { formatDayDate, formatTime, todayInAppTz, windowState, type WindowState, requestTime } from "@/lib/datetime";
 import { isEventForStudent } from "@/lib/eligibility";
 import type { EventDay, EventRecord, Venue } from "@/types/database";
@@ -19,8 +20,34 @@ function disabledReason(state: WindowState, day: EventDay, type: "sign_in" | "si
   return undefined;
 }
 
+// "Arino, Reymark Limaco" → "Reymark"; "Juan Dela Cruz" → "Juan".
+function firstName(fullName: string | undefined): string {
+  if (!fullName) return "there";
+  const given = fullName.includes(",") ? fullName.split(",")[1] : fullName;
+  return given.trim().split(/\s+/)[0] || "there";
+}
+
 export default async function StudentDashboard() {
   const profile = await getCurrentProfile();
+
+  // Graduates keep their login to view and print their history only.
+  if (profile?.graduated_at) {
+    return (
+      <div>
+        <PageTitle title={`Congratulations, ${firstName(profile.full_name)}! 🎓`} subtitle={`Student ID ${profile.student_id}`} />
+        <div className="mt-6 rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white p-5">
+          <p className="font-semibold text-brand-800">You&apos;ve graduated</p>
+          <p className="mt-1 text-sm text-slate-600">
+            You no longer sign in to events, but your attendance records are kept. You can view and print them
+            anytime.
+          </p>
+          <Link href="/student/history" className={`${btnPrimary} mt-4 inline-flex`}>
+            View my attendance history
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const supabase = await createClient();
 
   // Independent queries run in parallel; the semester filter is applied
@@ -143,7 +170,7 @@ export default async function StudentDashboard() {
       <AutoRefresh intervalMs={60_000} />
 
       <PageTitle
-        title={`Hi, ${profile?.full_name?.split(" ")[0] ?? "there"}`}
+        title={`Hi, ${firstName(profile?.full_name)}`}
         subtitle={
           <>
             Student ID {profile?.student_id}

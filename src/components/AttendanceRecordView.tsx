@@ -29,8 +29,26 @@ export async function AttendanceRecordView({
     .select("*")
     .order("start_date", { ascending: false });
   const semesters = (semesterRows ?? []) as Semester[];
+
+  // This student's program/year in each semester of a finished school year.
+  const { data: rosterRows } = await supabase
+    .from("semester_roster")
+    .select("semester_id, program, year_level")
+    .eq("profile_id", student.id);
+  const asOf = new Map((rosterRows ?? []).map((r) => [r.semester_id as string, r]));
+
+  // Graduates open on their last semester, not the new school year's.
+  const lastAttended = student.graduated_at ? semesters.find((s) => asOf.has(s.id)) : undefined;
   const semester =
-    semesters.find((s) => s.id === semesterParam) ?? semesters.find((s) => s.is_active) ?? semesters[0] ?? null;
+    semesters.find((s) => s.id === semesterParam) ??
+    lastAttended ??
+    semesters.find((s) => s.is_active) ??
+    semesters[0] ??
+    null;
+  const then = semester ? asOf.get(semester.id) : undefined;
+  // Graduates had nothing required in semesters after they graduated.
+  const notEnrolled = Boolean(student.graduated_at) && !then;
+  const studentThen = then ? { ...student, program: then.program, year_level: then.year_level } : student;
 
   let eventsQuery = supabase
     .from("events")
@@ -60,7 +78,7 @@ export async function AttendanceRecordView({
 
   // Events meant for other programs/years don't count against the student;
   // they're listed only if the student attended anyway, as "Not required".
-  const isRequired = (e: EventWithDays) => isEventForStudent(e, student);
+  const isRequired = (e: EventWithDays) => !notEnrolled && isEventForStudent(e, studentThen);
   const attendedAny = (e: EventWithDays) => e.event_days.some((d) => records.some((r) => r.event_day_id === d.id));
   const shown = allEvents.filter((e) => isRequired(e) || attendedAny(e));
 
@@ -113,9 +131,10 @@ export async function AttendanceRecordView({
             <h2 className="mt-1 text-lg font-semibold text-slate-900">{student.full_name}</h2>
             <p className="text-sm text-slate-600">
               {student.student_id}
-              {[student.program, student.year_level].filter(Boolean).length > 0 && (
-                <> · {[student.program, student.year_level].filter(Boolean).join(" · ")}</>
+              {[studentThen.program, studentThen.year_level].filter(Boolean).length > 0 && (
+                <> · {[studentThen.program, studentThen.year_level].filter(Boolean).join(" · ")}</>
               )}
+              {student.graduated_at && <> · Graduated</>}
             </p>
             <p className="mt-1 text-sm text-slate-500">{semester?.name ?? "All events"}</p>
           </div>

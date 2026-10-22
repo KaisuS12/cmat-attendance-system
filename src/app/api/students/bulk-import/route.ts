@@ -63,7 +63,11 @@ export async function POST(request: Request) {
 
   // Skip students that already have an account, so re-running an import (or
   // importing an updated masterlist) is safe. Rows with an ID match by ID;
-  // rows without one match by name + program + year level.
+  // rows without one match a current (not graduated) student by name +
+  // program. Year is ignored so next school year's masterlist ("BSTM 4"
+  // instead of "BSTM 3") finds the same person, and "Update existing" moves
+  // them up; if two current students share a name and program, the year
+  // decides.
   const { updateExisting } = body.data;
   const ids = body.data.students.map((s) => s.studentId).filter(Boolean);
   const unnamed = body.data.students.filter((s) => !s.studentId);
@@ -72,19 +76,28 @@ export async function POST(request: Request) {
     const { data } = await admin.from("profiles").select("id, student_id").in("student_id", ids);
     for (const e of data ?? []) existingByStudentId.set(e.student_id as string, { id: e.id, studentId: e.student_id });
   }
-  const nameKey = (name: string, program?: string | null, year?: string | null) =>
-    `${name.trim().toLowerCase()}|${(program ?? "").trim().toUpperCase()}|${(year ?? "").trim()}`;
-  const existingByName = new Map<string, { id: string; studentId: string }>();
+  const nameKey = (name: string, program?: string | null) =>
+    `${name.trim().toLowerCase()}|${(program ?? "").trim().replace(/\s+/g, " ").toUpperCase()}`;
+  const existingByName = new Map<string, { id: string; studentId: string; year: string }[]>();
   if (unnamed.length) {
     const { data } = await admin
       .from("profiles")
       .select("id, student_id, full_name, program, year_level")
       .eq("role", "student")
+      .is("graduated_at", null)
       .in("full_name", unnamed.map((s) => s.fullName));
     for (const e of data ?? []) {
-      existingByName.set(nameKey(e.full_name, e.program, e.year_level), { id: e.id, studentId: e.student_id ?? "" });
+      const key = nameKey(e.full_name, e.program);
+      const list = existingByName.get(key) ?? [];
+      list.push({ id: e.id, studentId: e.student_id ?? "", year: (e.year_level ?? "").trim() });
+      existingByName.set(key, list);
     }
   }
+  const findByName = (student: Row) => {
+    const candidates = existingByName.get(nameKey(student.fullName, student.program)) ?? [];
+    if (candidates.length <= 1) return candidates[0];
+    return candidates.find((c) => c.year === (student.yearLevel ?? "").trim());
+  };
 
   // Next free generated number for this year, e.g. NAM26-0042 → 43.
   const prefix = generatedIdPrefix();
@@ -103,7 +116,7 @@ export async function POST(request: Request) {
   async function importOne(student: Row): Promise<Result> {
     const match = student.studentId
       ? existingByStudentId.get(student.studentId)
-      : existingByName.get(nameKey(student.fullName, student.program, student.yearLevel));
+      : findByName(student);
     const base = { studentId: match?.studentId || student.studentId, fullName: student.fullName };
     const existingId = match?.id;
     if (existingId) {

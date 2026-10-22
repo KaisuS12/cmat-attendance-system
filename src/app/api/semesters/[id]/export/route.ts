@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { csvResponse } from "@/lib/csv";
 import { formatDayDate } from "@/lib/datetime";
 import { fetchAll } from "@/lib/supabase/fetch-all";
-import { loadDayAttendance, type StudentSummary } from "@/lib/reports";
+import { asOfSemester, loadDayAttendance, loadRoster, type StudentSummary } from "@/lib/reports";
 import { isEventForStudent, type EventTargets } from "@/lib/eligibility";
 import type { EventDay } from "@/types/database";
 
@@ -43,15 +43,18 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/seme
     }
   }
 
-  const students = await fetchAll<StudentSummary>((from, to) =>
-    admin
-      .from("profiles")
-      .select("id, student_id, full_name, program, year_level, section")
-      .eq("role", "student")
-      .order("full_name")
-      .order("id")
-      .range(from, to)
-  );
+  // A semester from a finished school year uses its frozen class list:
+  // everyone as they were then (graduates included). Otherwise, current
+  // students who haven't graduated.
+  const [everyone, roster] = await Promise.all([
+    fetchAll<StudentSummary & { graduated_at?: string | null }>((from, to) =>
+      admin.from("profiles").select("*").eq("role", "student").order("full_name").order("id").range(from, to)
+    ),
+    loadRoster(admin, id),
+  ]);
+  const students = roster
+    ? everyone.filter((s) => roster.has(s.id)).map((s) => asOfSemester(s, roster))
+    : everyone.filter((s) => !s.graduated_at);
 
   const rows: (string | number | null)[][] = [
     [

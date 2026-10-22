@@ -13,6 +13,7 @@ export interface Profile {
   email: string | null;
   must_change_password: boolean;
   is_active: boolean;
+  graduated_at: string | null; // set when they finished their program's last year
   created_at: string;
 }
 

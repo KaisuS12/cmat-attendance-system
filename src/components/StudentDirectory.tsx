@@ -93,6 +93,7 @@ export async function StudentDirectory({
                       </div>
                     </div>
                     {!s.is_active && <Badge tone="red">Deactivated</Badge>}
+                    {s.graduated_at && <Badge tone="gold">Graduated</Badge>}
                   </div>
                   <div className="mt-2 flex justify-end">{actions(s)}</div>
                 </li>
@@ -125,6 +126,11 @@ export async function StudentDirectory({
                         {!s.is_active && (
                           <span className="ml-2">
                             <Badge tone="red">Deactivated</Badge>
+                          </span>
+                        )}
+                        {s.graduated_at && (
+                          <span className="ml-2">
+                            <Badge tone="gold">Graduated</Badge>
                           </span>
                         )}
                       </td>

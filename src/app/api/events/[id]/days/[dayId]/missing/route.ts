@@ -20,9 +20,9 @@ export async function GET(
 
   const { data: event } = await admin
     .from("events")
-    .select("title, target_programs, target_year_levels, event_days(id, day_date)")
+    .select("title, semester_id, target_programs, target_year_levels, event_days(id, day_date)")
     .eq("id", id)
-    .single<EventTargets & { title: string; event_days: { id: string; day_date: string }[] }>();
+    .single<EventTargets & { title: string; semester_id: string | null; event_days: { id: string; day_date: string }[] }>();
   const day = event?.event_days.find((d) => d.id === dayId);
   if (!event || !day) return NextResponse.json({ error: "Event day not found." }, { status: 404 });
 

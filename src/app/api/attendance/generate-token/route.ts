@@ -69,6 +69,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Event day not found." }, { status: 404 });
   }
 
+  if (profile.graduated_at) {
+    return NextResponse.json({ error: "Graduated students no longer sign in to events." }, { status: 403 });
+  }
+
   if (!isEventForStudent(eventDay.events, profile)) {
     return NextResponse.json(
       { error: `This event is only for ${describeTargets(eventDay.events)}.` },

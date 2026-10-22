@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const [{ data: student }, { data: eventDay }] = await Promise.all([
     admin
       .from("profiles")
-      .select("id, full_name, student_id, program, year_level, section, role")
+      .select("*")
       .eq("id", studentProfileId)
       .single(),
     admin.from("event_days").select("id").eq("id", eventDayId).single(),
@@ -36,6 +36,9 @@ export async function POST(request: Request) {
 
   if (!student || student.role !== "student") {
     return NextResponse.json({ error: "Student not found." }, { status: 404 });
+  }
+  if (student.graduated_at) {
+    return NextResponse.json({ error: "This student has graduated and no longer signs in to events." }, { status: 409 });
   }
   if (!eventDay) {
     return NextResponse.json({ error: "Event day not found." }, { status: 404 });

@@ -146,7 +146,7 @@ export default function ImportStudentsPage() {
         <p>
           No student ID column? Each student gets one automatically (<code>{generatedIdPrefix()}0001</code>,{" "}
           <code>{generatedIdPrefix()}0002</code>, …) — it&apos;s printed on their slip and is what they log in with.
-          Students already in the system are skipped (matched by name, program and year), so it&apos;s safe to upload
+          Students already in the system are skipped (matched by name and program), so it&apos;s safe to upload
           the same or an updated list again.
         </p>
         <button
