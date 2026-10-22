@@ -1,0 +1,81 @@
+# Weekly backup of the Supabase database (schema, roles, and all data
+# including logins), every Sunday 2:00 AM Manila time, or on demand from
+# GitHub → Actions → "Weekly database backup" → Run workflow.
+#
+# This repo is public, so the backup is ENCRYPTED before it's stored: the
+# file is useless without BACKUP_PASSPHRASE. Each backup is kept 90 days.
+#
+# Needs two repository secrets (GitHub → Settings → Secrets and variables →
+# Actions → New repository secret):
+#   SUPABASE_DB_URL    Supabase → Connect → "Session pooler" connection
+#                      string, with [YOUR-PASSWORD] replaced.
+#   BACKUP_PASSPHRASE  A long passphrase. Keep a copy somewhere safe —
+#                      without it the backups can't be opened.
+#
+# To open a backup: download it from the run's "Artifacts", unzip, then
+#   gpg -d cmat-backup-YYYY-MM-DD.tar.gz.gpg | tar -xz
+# which gives backup/roles.sql, backup/schema.sql and backup/data.sql
+# (restore with psql, in that order: see Supabase docs "Backup and restore
+# using the CLI").
+name: Weekly database backup
+
+on:
+  schedule:
+    - cron: "0 18 * * 6" # Saturday 18:00 UTC = Sunday 02:00 Manila
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check secrets
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB_URL" ]; then echo "::error::Add the SUPABASE_DB_URL repository secret."; exit 1; fi
+          if [ -z "$PASSPHRASE" ]; then echo "::error::Add the BACKUP_PASSPHRASE repository secret."; exit 1; fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump the database
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          mkdir backup
+          supabase db dump --db-url "$DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$DB_URL" -f backup/data.sql --data-only --use-copy --schema public,auth
+          ls -la backup
+          # A dump with no student data means something went wrong.
+          grep -q "profiles" backup/data.sql
+
+      - name: Encrypt
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          stamp="$(TZ=Asia/Manila date +%Y-%m-%d)"
+          tar -czf - backup | gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --pinentry-mode loopback --passphrase-file <(printf '%s' "$PASSPHRASE") \
+            -o "cmat-backup-$stamp.tar.gz.gpg"
+          rm -rf backup
+          ls -la cmat-backup-*.gpg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmat-backup-${{ github.run_number }}
+          path: cmat-backup-*.tar.gz.gpg
+          retention-days: 90
+          if-no-files-found: error

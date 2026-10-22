@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/session";
 import { AddOfficerForm } from "@/components/AddOfficerForm";
 import { AccountActions } from "@/components/AccountActions";
 import { RoleButton } from "@/components/RoleButton";
+import { RemoveStaffButton } from "@/components/RemoveStaffButton";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import type { Profile } from "@/types/database";
 
@@ -28,6 +29,7 @@ function StaffRow({ person, me }: { person: Profile; me: string | undefined }) {
           {/* Admins can't be reset or deactivated from here (switch them to
               officer first), so one admin can't quietly lock out another. */}
           {!isAdmin && <AccountActions userId={person.id} name={person.full_name} isActive={person.is_active} />}
+          {!isAdmin && <RemoveStaffButton userId={person.id} name={person.full_name} />}
         </div>
       )}
     </div>
@@ -42,7 +44,10 @@ export default async function StaffPage() {
   ]);
   const staff = (data ?? []) as Profile[];
   const admins = staff.filter((p) => p.role === "admin");
-  const officers = staff.filter((p) => p.role === "officer");
+  const officers = staff.filter((p) => p.role === "officer" && p.is_active);
+  // Deactivated or removed officers are kept (their names are on past
+  // records) but tucked away below.
+  const former = staff.filter((p) => p.role === "officer" && !p.is_active);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -68,6 +73,23 @@ export default async function StaffPage() {
           officers.map((p) => <StaffRow key={p.id} person={p} me={me?.id} />)
         )}
       </div>
+
+      {former.length > 0 && (
+        <details className="mt-8">
+          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Former officers ({former.length})
+          </summary>
+          <p className="mt-1 text-xs text-slate-500">
+            Can&apos;t log in. Kept because their names are on events or scans they handled. Reactivate to bring one
+            back.
+          </p>
+          <div className="mt-2 space-y-2">
+            {former.map((p) => (
+              <StaffRow key={p.id} person={p} me={me?.id} />
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
