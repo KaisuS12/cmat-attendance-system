@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InstallAppPrompt } from "@/components/InstallAppPrompt";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { AppHeader, HAS_BOTTOM_NAV, NAV } from "@/components/AppHeader";
@@ -52,6 +53,7 @@ export async function RoleLayout({ section, children }: { section: Section; chil
             </Link>
           </div>
         )}
+        <InstallAppPrompt />
         {children}
       </main>
       {bottomNav && <BottomNav items={NAV[profile.role]} />}
