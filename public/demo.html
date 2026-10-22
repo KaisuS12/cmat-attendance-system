@@ -1,0 +1,507 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>NAM Event-Day Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: a stage with two phones (student · officer) and a caption rail that narrates each step of an event day. */
+:root {
+  --bg: #f3f5fa;
+  --panel: #ffffff;
+  --ink: #0f1d3d;
+  --muted: #5b6785;
+  --line: #dbe1ee;
+  --navy: #112e66;
+  --navy-2: #1e4a9c;
+  --gold: #f9cb1e;
+  --gold-ink: #8a6500;
+  --gold-soft: #fef6d8;
+  --ok: #0f8a5f;
+  --ok-soft: #e3f5ec;
+  --bad: #c22b2b;
+  --bad-soft: #fde8e8;
+  --phone: #0b1224;
+  --font: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a1124; --panel: #121b33; --ink: #e8edf8; --muted: #9aa6c4; --line: #26314f;
+    --gold-ink: #f9cb1e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a1124; --panel: #121b33; --ink: #e8edf8; --muted: #9aa6c4; --line: #26314f;
+  --gold-ink: #f9cb1e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1060px; margin: 0 auto; display: grid; gap: 18px; }
+header.top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+header.top img { width: 40px; height: 40px; }
+header.top h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.01em; text-wrap: balance; }
+header.top p { margin: 0; color: var(--muted); font-size: .9rem; }
+.tag { margin-left: auto; font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); border: 1px solid var(--gold); background: var(--gold-soft); padding: 3px 9px; border-radius: 999px; }
+:root[data-theme="dark"] .tag { background: transparent; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag { background: transparent; } }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px) minmax(0, 1fr); gap: 18px; align-items: center; }
+.device { display: grid; justify-items: center; gap: 8px; min-width: 0; }
+.who { font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.who i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.phone {
+  width: min(100%, 270px); aspect-ratio: 9 / 18.5; background: var(--phone); border-radius: 34px; padding: 9px;
+  box-shadow: 0 18px 40px -18px rgba(8, 20, 50, .55), inset 0 0 0 2px #26324f; container-type: inline-size; position: relative;
+}
+.screen { position: relative; width: 100%; height: 100%; border-radius: 26px; overflow: hidden; background: #fff; color: #0f1d3d; font-size: 5.1cqw; }
+.screen.dark { background: #05080f; color: #fff; }
+.notch { position: absolute; top: 7px; left: 50%; translate: -50% 0; width: 32%; height: 16px; border-radius: 10px; background: var(--phone); z-index: 20; }
+.view { position: absolute; inset: 0; display: flex; flex-direction: column; animation: viewIn .35s ease both; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.status { display: flex; justify-content: space-between; padding: .55em 1.3em 0; font-size: .7em; font-weight: 600; opacity: .8; height: 2.2em; }
+.appbar { display: flex; align-items: center; gap: .45em; padding: .5em 1em; background: #112e66; color: #fff; font-weight: 700; font-size: .85em; }
+.appbar img { width: 1.6em; height: 1.6em; }
+.appbar span { color: #f9cb1e; }
+.pad { padding: .9em 1em; display: flex; flex-direction: column; gap: .7em; flex: 1; min-height: 0; }
+.h { font-weight: 700; font-size: 1.05em; color: #112e66; }
+.sub { font-size: .75em; color: #5b6785; }
+.field { display: grid; gap: .25em; font-size: .72em; color: #5b6785; font-weight: 500; }
+.input { border: 1px solid #cdd5e6; border-radius: .5em; padding: .45em .6em; font-size: 1.25em; color: #0f1d3d; background: #fff; min-height: 2.1em; font-family: var(--mono); }
+.input.caret::after { content: ""; display: inline-block; width: 1px; height: 1em; background: #112e66; vertical-align: -0.15em; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.btn { border-radius: .55em; padding: .6em; text-align: center; font-weight: 700; font-size: .85em; background: #163a80; color: #fff; transition: transform .15s, filter .15s; }
+.btn.gold { background: #f9cb1e; color: #112e66; }
+.btn.ghost { background: #fff; color: #163a80; border: 1px solid #cdd5e6; }
+.btn.press { transform: scale(.94); filter: brightness(1.2); }
+.tabs { display: flex; background: #eef3fb; border-radius: .6em; padding: .25em; font-size: .78em; }
+.tabs b, .tabs span { flex: 1; text-align: center; padding: .35em; border-radius: .45em; }
+.tabs b { background: #fff; box-shadow: 0 0 0 1px #f9cb1e; color: #112e66; }
+.tabs span { color: #5b6785; }
+.card { border: 1px solid #dbe1ee; border-left: .3em solid #f9cb1e; border-radius: .7em; padding: .7em; display: grid; gap: .45em; background: #fff; }
+.pill { justify-self: start; font-size: .68em; font-weight: 700; padding: .2em .6em; border-radius: 999px; background: #e3f5ec; color: #0f8a5f; }
+.pill.warn { background: #fef6d8; color: #8a6500; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .45em; }
+.tap { position: absolute; width: 2.2em; height: 2.2em; border-radius: 50%; background: rgba(249, 203, 30, .55); border: 2px solid #f9cb1e; pointer-events: none; z-index: 30; animation: tap .7s ease-out forwards; translate: -50% -50%; }
+@keyframes tap { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+
+/* map */
+.map { position: relative; height: 9.5em; border-radius: .7em; overflow: hidden; background:
+  linear-gradient(90deg, transparent 47%, #fff 47% 53%, transparent 53%) 0 0 / 100% 100%,
+  linear-gradient(0deg, transparent 60%, #fff 60% 64%, transparent 64%) 0 0 / 100% 100%,
+  repeating-linear-gradient(45deg, #e3ecdf 0 10px, #dde7d8 10px 20px); border: 1px solid #cdd5e6; }
+.map .ring { position: absolute; left: 50%; top: 50%; width: 6.6em; height: 6.6em; translate: -50% -50%; border-radius: 50%; background: rgba(249, 203, 30, .22); border: 2px solid #e8b100; }
+.map .venue { position: absolute; left: 50%; top: 50%; translate: -50% -100%; font-size: 1.3em; }
+.map .me { position: absolute; width: .9em; height: .9em; border-radius: 50%; background: #1e4a9c; border: 2px solid #fff; box-shadow: 0 0 0 4px rgba(30, 74, 156, .25); translate: -50% -50%; transition: left 1.2s ease, top 1.2s ease; }
+.map .me::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(30, 74, 156, .5); animation: ping 1.4s ease-out infinite; }
+@keyframes ping { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+.map .lbl { position: absolute; left: .5em; bottom: .4em; font-size: .62em; background: rgba(255, 255, 255, .9); padding: .15em .5em; border-radius: .4em; color: #112e66; font-weight: 600; }
+.note { font-size: .72em; border-radius: .55em; padding: .55em .65em; }
+.note.ok { background: #e3f5ec; color: #0b6b49; }
+.note.bad { background: #fde8e8; color: #9b1c1c; }
+.note.info { background: #eef3fb; color: #163a80; }
+.spinner { width: 1.1em; height: 1.1em; border-radius: 50%; border: 2px solid #cdd5e6; border-top-color: #163a80; animation: spin .8s linear infinite; display: inline-block; vertical-align: -.2em; margin-right: .35em; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* QR */
+.qrwrap { display: grid; justify-items: center; gap: .5em; padding-top: .4em; }
+.qr { width: 78%; aspect-ratio: 1; image-rendering: pixelated; background: #fff; border-radius: .3em; }
+.qrwrap.dim .qr { opacity: .12; }
+.count { font-size: .85em; color: #334; }
+.count b { font-family: var(--mono); }
+.big-ok { display: grid; justify-items: center; gap: .5em; padding-top: 2.2em; text-align: center; }
+.big-ok .c { width: 4.4em; height: 4.4em; border-radius: 50%; display: grid; place-items: center; font-size: 1.4em; font-weight: 800; animation: pop .45s cubic-bezier(.3, 1.6, .5, 1) both; }
+.big-ok .c.ok { background: #e3f5ec; color: #0f8a5f; }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* scanner */
+.scan-top { padding: 2em 1em .6em; display: grid; gap: .35em; background: linear-gradient(#05080f, rgba(5, 8, 15, 0)); position: relative; z-index: 2; }
+.scan-top .t { font-weight: 700; font-size: .85em; display: flex; justify-content: space-between; gap: .5em; }
+.scan-top .t span { font-family: var(--mono); color: #f9cb1e; }
+.win { justify-self: start; font-size: .66em; font-weight: 700; padding: .2em .6em; border-radius: 999px; background: rgba(15, 138, 95, .25); color: #7fe0b5; }
+.cam { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, #2a3550 0%, #121a2c 55%, #070b14 100%); }
+.guides { position: absolute; left: 14%; right: 14%; top: 30%; aspect-ratio: 1; }
+.guides i { position: absolute; width: 18%; height: 18%; border: 3px solid #f9cb1e; }
+.guides i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+.guides i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
+.guides i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
+.guides i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
+.held { position: absolute; left: 22%; right: 22%; top: 37%; aspect-ratio: 1; border-radius: .4em; background: #fff; padding: .35em; transform: translateY(140%) rotate(-8deg); opacity: 0; transition: transform .9s cubic-bezier(.2, .8, .2, 1), opacity .5s; box-shadow: 0 10px 30px rgba(0, 0, 0, .6); }
+.held.in { transform: none; opacity: 1; }
+.held canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.held.shot::before { content: "Screenshot"; position: absolute; top: -1.6em; left: 0; font-size: .6em; font-weight: 700; color: #fff; background: #c22b2b; padding: .1em .5em; border-radius: .3em; }
+.beam { position: absolute; left: 16%; right: 16%; height: 2px; top: 34%; background: #f9cb1e; box-shadow: 0 0 12px 2px rgba(249, 203, 30, .7); animation: beam 1.6s ease-in-out infinite alternate; opacity: .85; }
+@keyframes beam { to { top: 74%; } }
+.dock { position: absolute; left: 0; right: 0; bottom: 0; padding: .6em .7em 1em; display: grid; grid-template-columns: repeat(4, 1fr); gap: .4em; background: linear-gradient(rgba(5, 8, 15, 0), #05080f 35%); z-index: 2; }
+.dock div { display: grid; justify-items: center; gap: .15em; font-size: .62em; color: #c9d2e6; padding: .4em 0; border-radius: .6em; background: rgba(255, 255, 255, .08); }
+.dock div b { font-size: 1.5em; line-height: 1; }
+.dock div.on { background: #f9cb1e; color: #112e66; }
+.result { position: absolute; left: .7em; right: .7em; top: 33%; border-radius: .9em; padding: 1em; z-index: 5; display: grid; gap: .2em; animation: pop .4s cubic-bezier(.3, 1.6, .5, 1) both; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.result.ok { background: #0f8a5f; }
+.result.bad { background: #c22b2b; }
+.result .k { font-size: .66em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .9; }
+.result .n { font-size: 1.25em; font-weight: 800; line-height: 1.2; }
+.result .d { font-size: .72em; opacity: .92; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 24%; background: #fff; color: #0f1d3d; border-radius: 1.1em 1.1em 0 0; z-index: 6; padding: .9em 1em; display: flex; flex-direction: column; gap: .6em; animation: sheetUp .45s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+.sheet .grab { width: 2.6em; height: .3em; border-radius: 9px; background: #cdd5e6; justify-self: center; align-self: center; }
+.list { display: grid; gap: .3em; }
+.list div { font-size: .75em; padding: .45em .6em; border-radius: .5em; border: 1px solid #dbe1ee; display: flex; justify-content: space-between; }
+.list div small { color: #5b6785; }
+.list div.sel { border-color: #f9cb1e; background: #fef6d8; }
+
+/* officer dashboard */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4em; }
+.stat { border: 1px solid #dbe1ee; border-top: .25em solid var(--c); border-radius: .55em; padding: .45em .3em; text-align: center; }
+.stat b { display: block; font-size: 1.25em; font-family: var(--mono); color: #112e66; }
+.stat small { font-size: .58em; color: #5b6785; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.bar { height: .55em; border-radius: 9px; background: #eef3fb; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: #b98a00; border-radius: 9px; transition: width 2.2s ease; }
+.toast { position: absolute; left: 50%; bottom: 1.2em; translate: -50% 0; background: #0f8a5f; color: #fff; font-size: .72em; font-weight: 700; padding: .5em .9em; border-radius: 999px; z-index: 9; animation: pop .35s both; white-space: nowrap; }
+.chipset { display: flex; flex-wrap: wrap; gap: .3em; }
+.chip { font-size: .66em; border: 1px solid #cdd5e6; border-radius: 999px; padding: .2em .6em; color: #334; transition: background .3s, border-color .3s; }
+.chip.on { background: #fef6d8; border-color: #f9cb1e; color: #112e66; font-weight: 700; }
+.wins { display: grid; grid-template-columns: 1fr 1fr; gap: .4em; }
+.wins div { border: 1px solid #dbe1ee; border-left: .25em solid var(--c); border-radius: .45em; padding: .35em .45em; font-size: .64em; color: #5b6785; }
+.wins b { display: block; color: #0f1d3d; font-size: 1.15em; font-family: var(--mono); }
+
+/* middle rail */
+.rail { display: grid; gap: 12px; align-content: center; min-width: 0; }
+.stepno { font-family: var(--mono); font-size: .8rem; color: var(--gold-ink); font-weight: 600; letter-spacing: .06em; }
+.rail h2 { margin: 0; font-size: 1.35rem; line-height: 1.25; text-wrap: balance; letter-spacing: -0.01em; }
+.rail p { margin: 0; color: var(--muted); font-size: .95rem; }
+.flow { display: grid; justify-items: center; height: 26px; }
+.flow svg { width: 100%; height: 26px; overflow: visible; }
+.flow path { stroke: var(--gold); stroke-width: 2.5; fill: none; stroke-dasharray: 6 7; animation: dash 1s linear infinite; }
+@keyframes dash { to { stroke-dashoffset: -26; } }
+.flow.left path { animation-direction: reverse; }
+.flow.idle { visibility: hidden; }
+.progress { height: 4px; border-radius: 9px; background: var(--line); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--gold); }
+
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.controls button { font: inherit; font-size: .88rem; font-weight: 600; border-radius: 10px; padding: 8px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.controls button.primary { background: var(--navy); border-color: var(--navy); color: #fff; min-width: 96px; }
+.controls button:focus-visible, .steps button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.controls label { font-size: .85rem; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.controls select { font: inherit; font-size: .85rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 5px 6px; }
+
+.steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; list-style: none; margin: 0; padding: 0; }
+.steps button { width: 100%; text-align: left; font: inherit; font-size: .85rem; display: flex; gap: 10px; align-items: baseline; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.steps button span { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
+.steps button[aria-current="step"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.steps button[aria-current="step"] span { color: var(--gold-ink); }
+.foot { color: var(--muted); font-size: .8rem; text-align: center; }
+
+.paused * { animation-play-state: paused !important; }
+@media (max-width: 760px) {
+  .stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rail { grid-column: 1 / -1; grid-row: 1; text-align: center; }
+  .flow { display: none; }
+  .phone { border-radius: 26px; padding: 6px; }
+  .screen { border-radius: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <img src="data:image/png;base64,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" alt="CMAT logo">
+    <div>
+      <h1>NAM: CMAT Attendance</h1>
+      <p>Event day, step by step, on the student's phone and the officer's phone</p>
+    </div>
+    <span class="tag">Simulation · sample data</span>
+  </header>
+
+  <section class="stage" aria-label="Demo">
+    <div class="device">
+      <div class="who"><i style="background:#1e4a9c"></i>Student's phone</div>
+      <div class="phone"><div class="notch"></div><div class="screen" id="student"></div></div>
+    </div>
+
+    <div class="rail" aria-live="polite">
+      <div class="stepno" id="stepno">STEP 1 OF 9</div>
+      <h2 id="title">Before the event</h2>
+      <p id="desc"></p>
+      <div class="flow idle" id="flow"><svg viewBox="0 0 300 26" preserveAspectRatio="none"><path d="M6 13 H294 M282 4 L294 13 L282 22"/></svg></div>
+      <div class="progress"><i id="prog"></i></div>
+    </div>
+
+    <div class="device">
+      <div class="who"><i style="background:#f9cb1e"></i>Officer's phone</div>
+      <div class="phone"><div class="notch"></div><div class="screen" id="officer"></div></div>
+    </div>
+  </section>
+
+  <div class="controls">
+    <button id="prev" aria-label="Previous step">← Back</button>
+    <button id="play" class="primary">Pause</button>
+    <button id="next" aria-label="Next step">Next →</button>
+    <button id="restart">Restart</button>
+    <label for="speed">Speed
+      <select id="speed"><option value="0.75">Slow</option><option value="1" selected>Normal</option><option value="1.5">Fast</option></select>
+    </label>
+  </div>
+
+  <ol class="steps" id="steps"></ol>
+  <p class="foot">Names, IDs and numbers are examples. The real system works the same way on any phone browser, with no app to install.</p>
+</div>
+
+<script>
+(() => {
+  const LOGO = document.querySelector("header.top img").src;
+  const $s = document.getElementById("student");
+  const $o = document.getElementById("officer");
+  const flow = document.getElementById("flow");
+
+  // ---------- helpers ----------
+  const status = (time) => `<div class="status"><span>${time}</span><span>📶 🔋</span></div>`;
+  const appbar = `<div class="appbar"><img src="${LOGO}" alt=""><div>NAM <span>·</span> CMAT Attendance</div></div>`;
+  const show = (el, html, dark = false) => { el.classList.toggle("dark", dark); el.innerHTML = `<div class="view">${html}</div>`; };
+  const q = (el, sel) => el.querySelector(sel);
+  function tap(el, sel) {
+    const target = q(el, sel); if (!target) return;
+    const a = el.getBoundingClientRect(), b = target.getBoundingClientRect();
+    const t = document.createElement("div"); t.className = "tap";
+    t.style.left = (b.left - a.left + b.width / 2) + "px"; t.style.top = (b.top - a.top + b.height / 2) + "px";
+    el.appendChild(t); target.classList.add("press"); setTimeout(() => { t.remove(); target.classList.remove("press"); }, 700);
+  }
+  function type(el, sel, text, ms, t0, steps, mask) {
+    for (let i = 1; i <= text.length; i++) steps.push([t0 + i * ms, () => { const f = q(el, sel); if (f) f.textContent = mask ? "•".repeat(i) : text.slice(0, i); }]);
+  }
+  function drawQR(canvas, seed) {
+    const n = 29, ctx = canvas.getContext("2d"); canvas.width = n; canvas.height = n;
+    let x = seed >>> 0; const rnd = () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296);
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, n, n); ctx.fillStyle = "#0b1224";
+    const finder = (cx, cy) => { for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) { const e = i === 0 || j === 0 || i === 6 || j === 6, c = i > 1 && i < 5 && j > 1 && j < 5; if (e || c) ctx.fillRect(cx + i, cy + j, 1, 1); } };
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const inF = (i < 8 && j < 8) || (i > n - 9 && j < 8) || (i < 8 && j > n - 9);
+      if (!inF && rnd() > .52) ctx.fillRect(i, j, 1, 1);
+    }
+    finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
+  }
+  const winName = (mode) => (mode === "Sign in" ? "Sign-in" : "Sign-out");
+  const map = (meLeft, meTop, label) => `<div class="map"><div class="ring"></div><div class="venue">🏟️</div>${meLeft === null ? "" : `<div class="me" style="left:${meLeft}%;top:${meTop}%"></div>`}<div class="lbl">${label}</div></div>`;
+
+  // ---------- screens ----------
+  const S = {
+    login: () => show($s, `${status("6:52")}<div class="pad" style="padding-top:1.4em">
+      <div style="display:grid;justify-items:center;gap:.3em"><img src="${LOGO}" alt="" style="width:3.4em"><div class="h">NAM</div><div class="sub">CMAT Attendance</div></div>
+      <div class="tabs"><b>Student</b><span>Officer / Admin</span></div>
+      <div class="field">Student ID<div class="input caret" id="sid"></div></div>
+      <div class="field">Password<div class="input" id="spw"></div></div>
+      <div class="btn" id="sbtn">Log in</div></div>`),
+    home: (open, label = "Sign in") => show($s, `${status("7:41")}${appbar}<div class="pad">
+      <div><div class="h">Hi, Juan 👋</div><div class="sub">BSTM 1 · NAM26-0042</div></div>
+      <div class="card"><div style="font-weight:700">General Assembly</div><div class="sub">CMAT Gym · Today</div>
+        ${open ? `<span class="pill">${winName(label)} window open</span><div class="btn gold" id="act">${label}</div>`
+               : `<span class="pill warn">Starts tomorrow, 7:30 AM</span>`}
+      </div>
+      ${open ? "" : `<div class="note info">You're logged in and ready. Bring your phone with location ON.</div>`}
+      <div class="sub" style="margin-top:auto">My attendance · 4 of 4 events completed</div></div>`),
+    locating: (time) => show($s, `${status(time)}${appbar}<div class="pad">
+      <div class="h" id="lh"><span class="spinner"></span>Checking your location…</div>
+      ${map(18, 85, "CMAT Gym · 150 m")}
+      <div class="note info" id="ln">Location is needed so a QR is only made at the venue.</div></div>`),
+    qr: (label, time, seed) => { show($s, `${status(time)}<div class="pad" style="text-align:center">
+      <div class="sub" style="font-weight:700;letter-spacing:.1em;text-transform:uppercase">${label}</div>
+      <div class="qrwrap" id="qw"><canvas class="qr" id="qrc"></canvas></div>
+      <div class="count">Expires in <b id="cd">60</b>s</div>
+      <div class="sub">Turn your brightness up and show this to the officer.</div></div>`); drawQR(q($s, "#qrc"), seed); },
+    done: (msg, sub, time) => show($s, `${status(time)}<div class="big-ok"><div class="c ok">✓</div><div class="h">${msg}</div><div class="sub" style="padding:0 1.4em">${sub}</div></div>`),
+    away: () => show($s, `${status("7:44")}${appbar}<div class="pad">
+      <div class="h">Can't sign in from here</div>
+      ${map(92, 12, "You are 1.2 km away")}
+      <div class="note bad">You're about <b>1,200 m</b> from CMAT Gym. You need to be within <b>150 m</b> to sign in.</div>
+      <div class="sub">No QR code is created, so there is nothing to send to a friend.</div></div>`),
+  };
+
+  const O = {
+    newEvent: () => show($o, `${status("6:40")}${appbar}<div class="pad" style="gap:.55em">
+      <div class="h">New event</div>
+      <div class="field">Title<div class="input" id="et" style="font-family:var(--font)"></div></div>
+      ${map(null, null, "CMAT Gym · radius 150 m")}
+      <div class="chipset"><span class="chip on">All of CMAT</span><span class="chip">BSTM</span><span class="chip">BSIT</span><span class="chip">BSA</span></div>
+      <div class="chipset" style="align-items:center"><span class="sub">Quick fill:</span><span class="chip" id="qf">Whole day</span><span class="chip">Morning</span><span class="chip">Afternoon</span></div>
+      <div class="wins"><div style="--c:#1e4a9c">Sign-in<b id="w1">--:--</b></div><div style="--c:#f9cb1e">Sign-out<b id="w2">--:--</b></div></div>
+      <div class="btn" id="cbtn">Create event</div></div>`),
+    scanner: (mode, count) => show($o, `<div class="cam"></div>
+      <div class="scan-top"><div class="t">General Assembly · ${mode}<span id="cnt">${count}</span></div><span class="win">${winName(mode)} window open · 47 min left</span></div>
+      <div class="guides"><i></i><i></i><i></i><i></i></div><div class="beam"></div>
+      <div class="held" id="held"><canvas id="hc"></canvas></div>
+      <div class="dock"><div id="dm"><b>✍︎</b>Manual</div><div><b>☀︎</b>Light</div><div><b>⟲</b>Flip</div><div><b>☰</b>Recent</div></div>`, true),
+    result: (ok, k, n, d) => { const r = document.createElement("div"); r.className = "result " + (ok ? "ok" : "bad"); r.innerHTML = `<div class="k">${k}</div><div class="n">${n}</div><div class="d">${d}</div>`; q($o, ".view").appendChild(r); const b = q($o, ".beam"); if (b) b.remove(); },
+    hold: (seed, shot) => { const h = q($o, "#held"); drawQR(q($o, "#hc"), seed); h.classList.toggle("shot", !!shot); h.classList.add("in"); },
+    manual: () => { const sh = document.createElement("div"); sh.className = "sheet"; sh.innerHTML = `<div class="grab"></div>
+      <div class="h">Manual entry · Sign in</div>
+      <div class="field">Search student<div class="input caret" id="ms" style="font-family:var(--font)"></div></div>
+      <div class="list" id="ml"></div>
+      <div class="field">Reason (required)<div class="input" id="mr" style="font-family:var(--font)"></div></div>
+      <div class="btn" id="mb">Record sign-in</div>`; q($o, ".view").appendChild(sh); },
+    report: () => show($o, `${status("5:12")}${appbar}<div class="pad" style="gap:.6em">
+      <div><div class="h">General Assembly</div><div class="sub">Today · 1,034 students expected</div></div>
+      <div class="stats"><div class="stat" style="--c:#3d6fcc"><b id="r1">0</b><small>Signed in</small></div><div class="stat" style="--c:#17a06f"><b id="r2">0</b><small>Signed out</small></div><div class="stat" style="--c:#b98a00"><b id="r3">0</b><small>Completed</small></div></div>
+      <div class="sub">Completed (in and out): <b id="rp">0%</b></div><div class="bar"><i id="rb"></i></div>
+      <div class="tabs"><b>Missing (47)</b><span>By program & year</span></div>
+      <div class="list"><div>Reyes, Ana<small>BSTM 2</small></div><div>Lim, Carlo<small>BSIT 3</small></div><div>Bautista, Joy<small>BSA 1</small></div></div>
+      <div class="row2" style="margin-top:auto"><div class="btn ghost">Download CSV</div><div class="btn gold">Clearance sheet</div></div></div>`),
+  };
+
+  const flowTo = (dir) => { flow.classList.remove("idle", "left"); if (dir === "left") flow.classList.add("left"); if (!dir) flow.classList.add("idle"); };
+  const countUp = (el, sel, from, to, t, dur) => { const v = Math.round(from + (to - from) * Math.min(1, Math.max(0, t / dur))); const f = q(el, sel); if (f) f.textContent = v.toLocaleString(); };
+
+  // ---------- scenes ----------
+  const SCENES = [];
+  {
+    const steps = [];
+    steps.push([0, () => { S.login(); O.newEvent(); flowTo(null); }]);
+    type($o, "#et", "General Assembly", 70, 500, steps);
+    type($s, "#sid", "NAM26-0042", 120, 700, steps);
+    type($s, "#spw", "xxxxxxxxx", 90, 2200, steps, true);
+    steps.push([2900, () => { const c = q($o, "#qf"); c && c.classList.add("on"); tap($o, "#qf"); }]);
+    steps.push([3200, () => { q($o, "#w1").textContent = "7:30–8:30 AM"; q($o, "#w2").textContent = "4:00–5:00 PM"; }]);
+    steps.push([3500, () => tap($s, "#sbtn")]);
+    steps.push([4100, () => S.home(false)]);
+    steps.push([4700, () => tap($o, "#cbtn")]);
+    steps.push([5000, () => { const t = document.createElement("div"); t.className = "toast"; t.textContent = "✓ Event created"; q($o, ".view").appendChild(t); }]);
+    SCENES.push({ name: "Before the event", dur: 7600, steps,
+      desc: "The officer creates the event: venue on the map with a 150 m radius, who it's for, and the sign-in and sign-out times. Students log in at home the day before with the ID on their slip." });
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { S.home(true, "Sign in"); O.scanner("Sign in", "211 / 1,034"); flowTo(null); }]);
+    steps.push([1300, () => tap($s, "#act")]);
+    steps.push([1800, () => S.locating("7:42")]);
+    steps.push([2600, () => { const m = q($s, ".me"); if (m) { m.style.left = "56%"; m.style.top = "57%"; } }]);
+    steps.push([3900, () => { q($s, "#lh").textContent = "✓ You're at the venue"; const n = q($s, "#ln"); n.className = "note ok"; n.innerHTML = "You're <b>38 m</b> from CMAT Gym, inside the 150 m radius."; }]);
+    SCENES.push({ name: "Arrive and tap Sign in", dur: 6200, steps,
+      desc: "At the entrance the student taps Sign in. The phone checks its GPS location. A QR code is only made when the student is inside the venue radius." });
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { S.qr("Sign in", "7:42", 4242); O.scanner("Sign in", "211 / 1,034"); flowTo(null); }]);
+    const scene = { name: "QR appears for 60 seconds", dur: 5200, steps,
+      desc: "A fresh QR code appears with a 60-second countdown. It works only once. The officer already has the scanner open, full screen, pointing at the line.",
+      tick: (t) => { const c = q($s, "#cd"); if (c) c.textContent = Math.max(0, 60 - Math.floor(t / 1000)); } };
+    SCENES.push(scene);
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { S.qr("Sign in", "7:42", 4242); O.scanner("Sign in", "211 / 1,034"); flowTo("right"); }]);
+    steps.push([500, () => O.hold(4242)]);
+    steps.push([2100, () => { O.result(true, "✓ Signed in · 7:42 AM", "Juan Dela Cruz", "NAM26-0042 · BSTM 1"); q($o, "#cnt").textContent = "212 / 1,034"; flowTo(null); }]);
+    steps.push([2700, () => S.done("You're signed in!", "Your attendance has been recorded.", "7:42")]);
+    SCENES.push({ name: "Officer scans", dur: 6800, steps,
+      desc: "The officer points the camera at the student's screen. In about a second a green card shows the student's name, ID, program and year, so the officer can glance at the person. The student's phone confirms too.",
+      tick: (t) => { const c = q($s, "#cd"); if (c) c.textContent = Math.max(0, 57 - Math.floor(t / 1000)); } });
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { S.done("You're signed in!", "Your attendance has been recorded.", "7:43"); O.scanner("Sign in", "212 / 1,034"); flowTo("right"); }]);
+    steps.push([600, () => O.hold(4242, true)]);
+    steps.push([2200, () => { O.result(false, "✕ Not accepted", "Code already used", "Ask the student to show the live QR on their own phone."); flowTo(null); }]);
+    steps.push([4400, () => S.away()]);
+    SCENES.push({ name: "Cheating doesn't work", dur: 8600, steps,
+      desc: "Juan sends a screenshot of his QR to a friend. When the friend shows it, it's rejected: each code works once and expires in 60 seconds. Trying from home doesn't work either, because no QR is made outside the venue." });
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { show($s, `${status("7:50")}<div style="flex:1;display:grid;place-items:center;background:#05080f;color:#5b6785;font-size:.8em;text-align:center;padding:2em">🔋<br>Phone battery dead</div>`, true); O.scanner("Sign in", "305 / 1,034"); flowTo(null); }]);
+    steps.push([900, () => { tap($o, "#dm"); q($o, "#dm").classList.add("on"); }]);
+    steps.push([1300, () => O.manual()]);
+    type($o, "#ms", "Santos", 110, 1900, steps);
+    steps.push([2700, () => { q($o, "#ml").innerHTML = `<div id="m1">Santos, Maria<small>BSTM 1</small></div><div>Santos, Paolo<small>BSIT 2</small></div>`; }]);
+    steps.push([3300, () => { const m = q($o, "#m1"); m.classList.add("sel"); tap($o, "#m1"); }]);
+    type($o, "#mr", "Phone battery dead", 65, 3700, steps);
+    steps.push([5100, () => tap($o, "#mb")]);
+    steps.push([5400, () => { q($o, ".sheet").remove(); O.result(true, "✓ Manual sign-in · logged", "Maria Santos", "Reason: phone battery dead · recorded by Officer Reyes"); q($o, "#cnt").textContent = "306 / 1,034"; }]);
+    SCENES.push({ name: "No phone? Manual entry", dur: 8400, steps,
+      desc: "If a student's phone is dead or has no signal, the officer taps Manual, finds the student by name, and types a reason. Every manual entry is saved in the audit log with the officer's name." });
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { S.home(true, "Sign out"); O.scanner("Sign out", "0 / 1,034"); flowTo(null); }]);
+    steps.push([1000, () => tap($s, "#act")]);
+    steps.push([1400, () => S.qr("Sign out", "4:08", 9137)]);
+    steps.push([2600, () => { flowTo("right"); O.hold(9137); }]);
+    steps.push([4100, () => { O.result(true, "✓ Signed out · 4:08 PM", "Juan Dela Cruz", "Completed · signed in and out"); q($o, "#cnt").textContent = "1 / 1,034"; flowTo(null); }]);
+    steps.push([4600, () => S.done("You're signed out!", "Completed: you signed in and out of General Assembly.", "4:08")]);
+    SCENES.push({ name: "Leaving: sign out", dur: 7800, steps,
+      desc: "During the sign-out window it's the same steps: tap Sign out, show the QR, scan. Only students who signed in and out count as Completed for clearance." });
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { show($s, `${status("8:15")}${appbar}<div class="pad"><div class="h">My attendance</div>
+      <div class="card"><div style="font-weight:700">General Assembly</div><div class="sub">Today · CMAT Gym</div><span class="pill">✓ Completed · in 7:42 AM · out 4:08 PM</span></div>
+      <div class="card"><div style="font-weight:700">CMAT Week Day 2</div><div class="sub">Sep 30</div><span class="pill">✓ Completed</span></div>
+      <div class="card"><div style="font-weight:700">Leadership Seminar</div><div class="sub">Sep 12</div><span class="pill">✓ Completed</span></div>
+      <div class="sub" style="margin-top:auto">Show this page during clearance signing.</div></div>`); O.report(); flowTo(null); }]);
+    steps.push([300, () => { const b = q($o, "#rb"); if (b) b.style.width = "91%"; }]);
+    SCENES.push({ name: "After the event", dur: 7000, steps,
+      desc: "Officers instantly see who signed in, who signed out, who completed, and who is missing. Everything downloads as a CSV, and the semester clearance sheet is one click. Students can check their own history anytime.",
+      tick: (t) => { countUp($o, "#r1", 0, 987, t, 2200); countUp($o, "#r2", 0, 948, t, 2200); countUp($o, "#r3", 0, 941, t, 2200); const p = q($o, "#rp"); if (p) p.textContent = Math.round(91 * Math.min(1, t / 2200)) + "%"; } });
+  }
+  {
+    const steps = [];
+    steps.push([0, () => { show($s, `${status("7:20")}${appbar}<div class="pad"><div class="h">Student checklist</div>
+      <div class="note ok">✓ Log in the night before</div><div class="note ok">✓ Location (GPS) ON</div><div class="note ok">✓ Mobile data or Wi-Fi ON</div><div class="note ok">✓ Brightness up at the door</div></div>`);
+      show($o, `${status("7:00")}${appbar}<div class="pad"><div class="h">Officer checklist</div>
+      <div class="note ok">✓ Phone charged, logged in</div><div class="note ok">✓ Scanner tested before doors open</div><div class="note ok">✓ Signal at the venue tested</div><div class="note ok">✓ About 1 officer per 100 students</div></div>`); flowTo(null); }]);
+    SCENES.push({ name: "Event-day checklist", dur: 7000, steps,
+      desc: "A short checklist keeps lines moving. Faster lines, honest attendance, and no more encoding names into Excel after every event." });
+  }
+
+  // ---------- player ----------
+  const stepsEl = document.getElementById("steps");
+  SCENES.forEach((sc, i) => { const li = document.createElement("li"); li.innerHTML = `<button type="button"><span>${String(i + 1).padStart(2, "0")}</span>${sc.name}</button>`; li.firstChild.addEventListener("click", () => go(i)); stepsEl.appendChild(li); });
+  const playBtn = document.getElementById("play"), prog = document.getElementById("prog");
+  let scene = 0, t = 0, fired = 0, playing = true, last = null, speed = 1;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function go(i) {
+    scene = Math.max(0, Math.min(SCENES.length - 1, i)); t = 0; fired = 0;
+    const sc = SCENES[scene];
+    document.getElementById("stepno").textContent = `STEP ${scene + 1} OF ${SCENES.length}`;
+    document.getElementById("title").textContent = sc.name;
+    document.getElementById("desc").textContent = sc.desc;
+    stepsEl.querySelectorAll("button").forEach((b, j) => j === scene ? b.setAttribute("aria-current", "step") : b.removeAttribute("aria-current"));
+    run(0);
+  }
+  function run(upTo) {
+    const sc = SCENES[scene];
+    while (fired < sc.steps.length && sc.steps[fired][0] <= upTo) { sc.steps[fired][1](); fired++; }
+    sc.tick && sc.tick(upTo);
+    prog.style.width = Math.min(100, upTo / sc.dur * 100) + "%";
+  }
+  function setPlaying(p) { playing = p; playBtn.textContent = p ? "Pause" : "Play"; document.querySelector(".stage").classList.toggle("paused", !p); }
+  function loop(now) {
+    if (last === null) last = now;
+    const dt = Math.min(100, now - last); last = now;
+    if (playing) {
+      t += dt * speed; run(t);
+      if (t >= SCENES[scene].dur) { if (scene < SCENES.length - 1) go(scene + 1); else setPlaying(false); }
+    }
+    requestAnimationFrame(loop);
+  }
+  playBtn.addEventListener("click", () => { if (!playing && scene === SCENES.length - 1 && t >= SCENES[scene].dur) go(0); setPlaying(!playing); });
+  document.getElementById("prev").addEventListener("click", () => go(scene - 1));
+  document.getElementById("next").addEventListener("click", () => go(scene + 1));
+  document.getElementById("restart").addEventListener("click", () => { go(0); setPlaying(true); });
+  document.getElementById("speed").addEventListener("change", (e) => { speed = Number(e.target.value); });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("select")) return;
+    if (e.key === "ArrowRight") go(scene + 1); else if (e.key === "ArrowLeft") go(scene - 1);
+    else if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+  });
+  if (reduce) speed = 0.75;
+  go(0); requestAnimationFrame(loop);
+})();
+</script>
+</body></html>

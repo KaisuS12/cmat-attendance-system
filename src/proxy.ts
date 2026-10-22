@@ -12,6 +12,9 @@ export async function proxy(request: NextRequest) {
   // Scheduled jobs (Vercel Cron) have no user session; those routes check
   // their own CRON_SECRET instead.
   if (request.nextUrl.pathname.startsWith("/api/cron/")) return NextResponse.next();
+  // The animated event-day demo (public/demo.html) is for presentations and
+  // anyone curious, so it's open without logging in.
+  if (request.nextUrl.pathname === "/demo.html") return NextResponse.next();
 
   let response = NextResponse.next({ request });
 
