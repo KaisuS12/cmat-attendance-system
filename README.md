@@ -78,7 +78,7 @@ cmat-attendance-system/
 ├── src/app/          # Next.js App Router: pages (student, officer, admin) and API routes
 ├── src/components/   # UI: scanner, event forms, charts, student directory, ...
 ├── src/lib/          # Rules: tokens, geofence, eligibility, reports, masterlist parser, ...
-├── supabase/         # SQL migrations 0001–0011 (tables, RLS, database functions)
+├── supabase/         # SQL migrations 0001–0012 (tables, RLS, database functions)
 ├── public/           # Logo, icons, animated demo page
 └── .github/          # Weekly encrypted database backup (GitHub Actions)
 ```
@@ -127,14 +127,14 @@ cmat-attendance-system/
 ### 📷 Phone-First Scanner
 - **Full Screen, Scan Anywhere** — The whole camera view reads QR codes; uses the browser's BarcodeDetector when available.
 - **Big Result Card** — Green ✓ with name, ID, program and year; red ✕ with the reason (expired, already used, different event).
-- **Manual Entry** — For dead phones or no signal: search the student, a reason is required, and it's audit-logged.
+- **Manual Entry** — For dead phones or no signal: search the student, type a reason, and take a live photo of their ID (no gallery uploads). It's audit-logged, and admins can compare the photo with the entry.
 - **Tools** — Flashlight, camera flip, recent scans on this phone, live sign-in/sign-out counts, screen kept awake.
 - **Fast** — One database round trip per scan (`record_scan`), so lines keep moving.
 
 ### 🛡️ Anti-Cheating Protections
 - **Phone Limit** — Each student account works on at most **2 phones**, and each phone for only **one** student, which stops "buddy sign-in" on a friend's phone. Officers can **Reset phones** for a new phone.
 - **Officer Check** — Every scan shows the real account owner's name for comparison with the person and their school ID.
-- **Accountability** — Manual entries need a reason; wrong records are **voided, never deleted**; everything is in the audit log.
+- **Accountability** — Manual entries need a reason and an ID photo; wrong records are **voided, never deleted**; everything is in the audit log.
 - **Time Windows** — Sign-in and sign-out only work inside each session's windows; officers can extend by 15 minutes live.
 
 ### 📅 Events, Days & Sessions
@@ -233,7 +233,7 @@ NAM runs on **Supabase PostgreSQL** with row-level security on every table. Time
 
 Database functions: `create_event`, `record_scan`, `apply_school_year`, `undo_school_year`, `set_active_semester`, `current_user_role`.
 
-> **Setting up a new database?** Run the files in [`supabase/migrations/`](supabase/migrations/) in order, `0001` → `0011`, in the Supabase SQL editor.
+> **Setting up a new database?** Run the files in [`supabase/migrations/`](supabase/migrations/) in order, `0001` → `0012`, in the Supabase SQL editor.
 
 ---
 
@@ -249,7 +249,7 @@ cmat-attendance-system/
 │   │   ├── officer/                # Events, new event, event page, scanner, students
 │   │   ├── admin/                  # Dashboard, students, import, staff, semesters, audit log
 │   │   ├── account/                # Change password
-│   │   └── api/                    # 42 endpoints (see API Catalog)
+│   │   └── api/                    # 43 endpoints (see API Catalog)
 │   ├── components/
 │   │   ├── Scanner.tsx             # Full-screen scanner, manual entry
 │   │   ├── AttendanceAction.tsx    # GPS check → QR with countdown
@@ -266,7 +266,7 @@ cmat-attendance-system/
 │       ├── reports.ts              # Attendance, analytics, frozen class lists
 │       ├── school-year.ts          # Promotion plan
 │       └── __tests__/              # Vitest unit tests
-├── supabase/migrations/            # 0001_init.sql … 0011_scanned_by_index.sql
+├── supabase/migrations/            # 0001_init.sql … 0012_manual_id_photos.sql
 ├── public/                         # Logo, icons, demo.html
 ├── .github/workflows/backup.yml    # Weekly encrypted backup
 └── vercel.json                     # Region + keep-alive cron
@@ -276,13 +276,14 @@ cmat-attendance-system/
 
 ## 🔌 API Catalog
 
-All **42 endpoints** are under `/api`. Highlights:
+All **43 endpoints** are under `/api`. Highlights:
 
 | Method | Endpoint | Access | Description |
 |--------|----------|--------|-------------|
 | `POST` | `/api/attendance/generate-token` | Student | GPS + time-window + phone check → 60-second QR |
 | `POST` | `/api/attendance/scan` | Officer, Admin | Verify and claim a QR, record attendance (one transaction) |
-| `POST` | `/api/attendance/manual` | Officer, Admin | Manual sign-in/out with a required reason |
+| `POST` | `/api/attendance/manual` | Officer, Admin | Manual sign-in/out with a required reason and ID photo |
+| `GET` | `/api/attendance/{id}/proof` | Admin | Short-lived link to a manual entry's ID photo (logged) |
 | `POST` | `/api/attendance/{id}/void` | Admin | Void a wrong record (kept, never deleted) |
 | `POST` | `/api/events` | Officer, Admin | Create an event with targets, venue, days and sessions |
 | `PATCH` | `/api/events/{id}/days/{dayId}` | Officer, Admin | Edit or extend a session's time windows |
@@ -315,7 +316,7 @@ npm install
 
 ### 2. Set Up the Database
 
-In the Supabase dashboard → **SQL Editor**, run each file in `supabase/migrations/` in order (`0001` → `0011`). Then in **Authentication → Providers → Email**, turn off public sign-ups (accounts are created by admins).
+In the Supabase dashboard → **SQL Editor**, run each file in `supabase/migrations/` in order (`0001` → `0012`). Then in **Authentication → Providers → Email**, turn off public sign-ups (accounts are created by admins).
 
 ### 3. Configure and Run
 
@@ -399,7 +400,8 @@ Open a backup with `gpg -d cmat-backup-YYYY-MM-DD.tar.gz.gpg | tar -xz`.
 - **Rate Limits** — At most 6 QR codes per student per minute.
 - **Passwords** — Hashed by Supabase Auth; temporary passwords are visible to officers only until the student changes them.
 - **Accountability** — Audit log of events, scans, manual entries, voids, imports, role changes and resets; records are voided, never deleted.
-- **Data Privacy Act** — The masterlist is imported only after written permission, and only name, student ID, program and year are stored.
+- **ID Photos** — Stored in a private bucket, viewable only by admins through 60-second links with each view logged, and deleted automatically after 90 days.
+- **Data Privacy Act** — The masterlist is imported only after written permission, and only name, student ID, program and year are stored from it.
 - **Secrets** — Only in environment variables; `.env.local` is git-ignored; backups are encrypted because this repository is public.
 
 **Known limitation:** GPS can be faked on a phone with developer tools. The officer's name check against the school ID at the door is the backup ([Officer Scanning Rules](#-documentation)).

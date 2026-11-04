@@ -84,6 +84,8 @@ export interface AttendanceRecord {
   qr_token_id: string | null;
   method: AttendanceMethod;
   manual_reason: string | null;
+  proof_photo_path: string | null; // ID photo of a manual entry (private storage)
+  proof_photo_deleted_at: string | null; // set when the photo is deleted after 90 days
   scanned_by: string;
   voided_at: string | null;
   voided_by: string | null;

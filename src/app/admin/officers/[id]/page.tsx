@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ActivityEventSelect } from "@/components/ActivityEventSelect";
 import { LiveSearch } from "@/components/LiveSearch";
+import { ProofPhotoButton } from "@/components/ProofPhotoButton";
 import { Badge, btnSecondary, EmptyState, PageTitle } from "@/components/ui";
 import { slotLabel } from "@/lib/attendance-status";
 import { formatDateTime } from "@/lib/datetime";
@@ -166,6 +167,11 @@ export default async function OfficerActivityPage({ params, searchParams }: Page
                   <p className="mt-1 text-sm text-slate-600">{r.event_days.events.title}</p>
                   <p className="text-xs text-slate-500">{eventDetail(r)}</p>
                   {r.manual_reason && <p className="mt-1 text-xs text-amber-800">Reason: {r.manual_reason}</p>}
+                  {r.method === "manual" && (
+                    <p className="mt-1">
+                      <ProofPhotoButton recordId={r.id} className="inline-flex min-h-9 items-center text-sm font-medium text-brand-700 underline" />
+                    </p>
+                  )}
                   {r.voided_at && <p className="mt-1"><Badge tone="red">Voided</Badge></p>}
                 </li>
               ))}
@@ -192,6 +198,9 @@ export default async function OfficerActivityPage({ params, searchParams }: Page
                           {r.voided_at && <Badge tone="red">Voided</Badge>}
                         </div>
                         {r.manual_reason && <p className="mt-1 text-xs text-amber-800">Reason: {r.manual_reason}</p>}
+                        {r.method === "manual" && (
+                          <ProofPhotoButton recordId={r.id} className="mt-1 block text-xs font-medium text-brand-700 underline" />
+                        )}
                       </td>
                       <td className="px-4 py-2.5">
                         <Link href={`/admin/students/${r.student.id}`} className="font-medium text-slate-800 hover:underline">

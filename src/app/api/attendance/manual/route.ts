@@ -3,11 +3,13 @@ import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
-import { parseJsonBody } from "@/lib/validation";
+import { formatZodError } from "@/lib/validation";
+import { PROOF_BUCKET, proofPhotoProblem } from "@/lib/proof-photos";
 
 // Officer override for a student who is physically present but can't
-// generate a QR (dead phone, no GPS, no signal). Requires a reason, is
-// flagged as manual on the record and in exports, and is audited.
+// generate a QR (dead phone, no GPS, no signal). Requires a reason and a live
+// photo of the student's ID, is flagged as manual on the record and in
+// exports, and is audited.
 const bodySchema = z.object({
   eventDayId: z.uuid(),
   studentProfileId: z.uuid(),
@@ -19,9 +21,26 @@ export async function POST(request: Request) {
   const { profile, error } = await requireRole("officer", "admin");
   if (error) return error;
 
-  const body = await parseJsonBody(request, bodySchema);
-  if (body.error) return body.error;
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    // Most likely a page opened before ID photos were required.
+    return NextResponse.json({ error: "Refresh the page and try again." }, { status: 400 });
+  }
+  const body = bodySchema.safeParse({
+    eventDayId: form.get("eventDayId"),
+    studentProfileId: form.get("studentProfileId"),
+    type: form.get("type"),
+    reason: form.get("reason"),
+  });
+  if (!body.success) return NextResponse.json({ error: formatZodError(body.error) }, { status: 400 });
   const { eventDayId, studentProfileId, type, reason } = body.data;
+
+  const photo = form.get("photo");
+  const photoBytes = photo instanceof Blob ? new Uint8Array(await photo.arrayBuffer()) : new Uint8Array();
+  const photoProblem = proofPhotoProblem(photoBytes);
+  if (photoProblem) return NextResponse.json({ error: photoProblem }, { status: 400 });
 
   const admin = createAdminClient();
 
@@ -47,6 +66,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Event day not found." }, { status: 404 });
   }
 
+  const alreadyRecorded = () =>
+    NextResponse.json(
+      { error: `${student.full_name} already has a ${type === "sign_in" ? "sign-in" : "sign-out"} for this day.` },
+      { status: 409 }
+    );
+
+  // Checked before uploading, so a repeat entry leaves no stray photo behind.
+  const { data: existing } = await admin
+    .from("attendance_records")
+    .select("id")
+    .eq("event_day_id", eventDayId)
+    .eq("student_id", studentProfileId)
+    .eq("type", type)
+    .is("voided_at", null)
+    .maybeSingle();
+  if (existing) return alreadyRecorded();
+
+  const photoPath = `${eventDayId}/${crypto.randomUUID()}.jpg`;
+  const { error: uploadError } = await admin.storage
+    .from(PROOF_BUCKET)
+    .upload(photoPath, photoBytes, { contentType: "image/jpeg" });
+  if (uploadError) {
+    return NextResponse.json({ error: "Could not save the ID photo. Nothing was recorded. Try again." }, { status: 500 });
+  }
+
   const { data: record, error: insertError } = await admin
     .from("attendance_records")
     .insert({
@@ -55,21 +99,16 @@ export async function POST(request: Request) {
       type,
       method: "manual",
       manual_reason: reason,
+      proof_photo_path: photoPath,
       scanned_by: profile.id,
     })
     .select("id, recorded_at")
     .single();
 
   if (insertError || !record) {
-    const duplicate = insertError?.code === "23505";
-    return NextResponse.json(
-      {
-        error: duplicate
-          ? `${student.full_name} already has a ${type === "sign_in" ? "sign-in" : "sign-out"} for this day.`
-          : "Could not record attendance.",
-      },
-      { status: duplicate ? 409 : 500 }
-    );
+    await admin.storage.from(PROOF_BUCKET).remove([photoPath]);
+    if (insertError?.code === "23505") return alreadyRecorded();
+    return NextResponse.json({ error: "Could not record attendance." }, { status: 500 });
   }
 
   // Audit write happens after the response so the officer isn't kept waiting.
@@ -79,7 +118,7 @@ export async function POST(request: Request) {
       action: "attendance_manual_entry",
       entityType: "attendance_records",
       entityId: record.id,
-      details: { studentId: studentProfileId, studentName: student.full_name, eventDayId, type, reason },
+      details: { studentId: studentProfileId, studentName: student.full_name, eventDayId, type, reason, hasPhoto: true },
     })
   );
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { ProofPhotoButton } from "@/components/ProofPhotoButton";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/lib/datetime";
@@ -92,6 +93,7 @@ export function DayAttendanceTable({
         {entry.method === "manual" && (
           <span className="rounded bg-amber-100 px-1 text-[10px] font-medium text-amber-800">manual</span>
         )}
+        {canVoid && entry.method === "manual" && <ProofPhotoButton recordId={entry.id} />}
         {canVoid && (
           <button
             onClick={() => {

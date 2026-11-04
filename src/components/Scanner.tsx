@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { formatDayDate, formatTime, windowState } from "@/lib/datetime";
+import { IdPhotoCapture } from "@/components/IdPhotoCapture";
 import { Alert, btnPrimary, btnSecondary, inputClass, labelClass } from "@/components/ui";
 import type { AttendanceType, EventDay } from "@/types/database";
 
@@ -499,8 +500,16 @@ function ManualEntry({
   const [selected, setSelected] = useState<StudentInfo | null>(null);
   const [type, setType] = useState<AttendanceType>(defaultType);
   const [reason, setReason] = useState("");
+  const [photo, setPhoto] = useState<Blob | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A photo belongs to one student: choosing again clears it (the capture
+  // component remounts with the student's key).
+  function choose(student: StudentInfo | null) {
+    setSelected(student);
+    setPhoto(null);
+  }
 
   useEffect(() => {
     if (selected || query.trim().length < 2) return;
@@ -528,14 +537,20 @@ function ManualEntry({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selected?.id) return;
+    if (!photo) {
+      setError("Take a photo of the student's ID first.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/attendance/manual", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventDayId, studentProfileId: selected.id, type, reason }),
-      });
+      const body = new FormData();
+      body.set("eventDayId", eventDayId);
+      body.set("studentProfileId", selected.id);
+      body.set("type", type);
+      body.set("reason", reason);
+      body.set("photo", photo, "id-photo.jpg");
+      const res = await fetch("/api/attendance/manual", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Could not record attendance.");
@@ -543,7 +558,7 @@ function ManualEntry({
         return;
       }
       onResult({ ok: true, message: "Recorded", student: data.student, type: data.type, manual: true });
-      setSelected(null);
+      choose(null);
       setQuery("");
       setMatches([]);
       setReason("");
@@ -557,8 +572,8 @@ function ManualEntry({
   return (
     <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-xl border border-slate-200 border-t-4 border-t-gold-400 bg-white p-4">
       <p className="text-xs text-slate-500">
-        For a student who is here but can&apos;t show a QR (dead phone, no GPS or signal). Every manual entry is
-        flagged and logged with your name.
+        For a student who is here but can&apos;t show a QR (dead phone, no GPS or signal). Every manual entry needs
+        a photo of their ID, and is flagged and logged with your name.
       </p>
 
       {selected ? (
@@ -567,7 +582,7 @@ function ManualEntry({
             <p className="font-medium text-slate-900">{selected.full_name}</p>
             <p className="text-sm text-slate-500">{describe(selected)}</p>
           </div>
-          <button type="button" onClick={() => setSelected(null)} className="text-sm text-slate-500 underline">
+          <button type="button" onClick={() => choose(null)} className="text-sm text-slate-500 underline">
             Change
           </button>
         </div>
@@ -590,7 +605,7 @@ function ManualEntry({
                 <li key={s.id}>
                   <button
                     type="button"
-                    onClick={() => setSelected(s)}
+                    onClick={() => choose(s)}
                     className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
                   >
                     <span className="font-medium text-slate-800">{s.full_name}</span>
@@ -646,9 +661,11 @@ function ManualEntry({
         />
       </div>
 
+      {selected && <IdPhotoCapture key={selected.id} onChange={setPhoto} />}
+
       {error && <Alert kind="error">{error}</Alert>}
 
-      <button type="submit" disabled={!selected || submitting} className={`${btnPrimary} w-full`}>
+      <button type="submit" disabled={!selected || !photo || submitting} className={`${btnPrimary} w-full`}>
         {submitting ? "Recording..." : "Record attendance"}
       </button>
     </form>
