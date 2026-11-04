@@ -174,7 +174,7 @@ export function AttendanceAction({
               <img
                 src={qrDataUrl}
                 alt={`${label} QR code`}
-                className={`h-auto w-[min(80vw,22rem)] ${expired ? "opacity-10" : ""}`}
+                className={`h-auto w-[min(80vw,22rem)] rounded-xl ${expired ? "opacity-10" : ""}`}
               />
               {expired && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center">

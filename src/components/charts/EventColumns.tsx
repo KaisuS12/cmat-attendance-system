@@ -78,7 +78,7 @@ export function EventColumns({ data }: { data: ColumnDatum[] }) {
           const x0 = cx - groupW / 2;
           return (
             <g key={d.key} opacity={active === null || active === i ? 1 : 0.45}>
-              {active === i && <rect x={PAD.left + slot * i} y={PAD.top} width={slot} height={innerH} fill="#f1f5f9" />}
+              {active === i && <rect x={PAD.left + slot * i} y={PAD.top} width={slot} height={innerH} fill="var(--chart-hover)" />}
               {SERIES.map((sr, j) => (
                 <path key={sr.key} d={bar(x0 + j * (barW + GAP), d[sr.key])} fill={sr.color} />
               ))}

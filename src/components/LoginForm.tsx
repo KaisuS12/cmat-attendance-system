@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
 import Image from "next/image";
 import { useLayoutEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -134,6 +135,10 @@ export function LoginForm({ notice }: { notice: string | null }) {
           <span className="block text-3xl font-extrabold tracking-[0.2em] text-gold-400">{APP_NAME}</span>
           <span className="mt-1 block text-sm font-medium uppercase tracking-[0.25em] text-white/80">{APP_TAGLINE}</span>
         </p>
+      </div>
+
+      <div className="splash-content fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-30">
+        <ThemeToggle />
       </div>
 
       <div className="w-full max-w-sm">

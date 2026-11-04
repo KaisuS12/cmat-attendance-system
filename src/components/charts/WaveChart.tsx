@@ -73,9 +73,9 @@ export function WaveChart({ data }: { data: WaveDatum[] }) {
   // into a muddy mix; "completed" is never above either of the others, so it
   // sits in front.
   const series = [
-    { key: "rate" as const, color: SERIES_BLUE, tint: "#dbe5f7", label: "Signed in" },
-    { key: "signedOutRate" as const, color: SERIES_TEAL, tint: "#cdeee0", label: "Signed out" },
-    { key: "completeRate" as const, color: SERIES_GOLD, tint: "#f3e3ad", label: "Completed" },
+    { key: "rate" as const, color: SERIES_BLUE, tint: "var(--chart-tint-blue)", label: "Signed in" },
+    { key: "signedOutRate" as const, color: SERIES_TEAL, tint: "var(--chart-tint-teal)", label: "Signed out" },
+    { key: "completeRate" as const, color: SERIES_GOLD, tint: "var(--chart-tint-gold)", label: "Completed" },
   ];
 
   const paths = series.map((sr) => {
@@ -123,7 +123,7 @@ export function WaveChart({ data }: { data: WaveDatum[] }) {
           <>
             <line x1={x(active)} x2={x(active)} y1={PAD.top} y2={base} stroke={AXIS_TEXT} strokeDasharray="3 3" />
             {series.map((sr) => (
-              <circle key={sr.key} cx={x(active)} cy={y(a[sr.key])} r={5} fill={sr.color} stroke="#fff" strokeWidth={2} />
+              <circle key={sr.key} cx={x(active)} cy={y(a[sr.key])} r={5} fill={sr.color} stroke="var(--chart-ring)" strokeWidth={2} />
             ))}
           </>
         )}

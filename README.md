@@ -174,6 +174,7 @@ cmat-attendance-system/
 
 ### 📱 Progressive Web App & Branding
 - **Installable** — "Add NAM to your home screen" prompt (Android install button, iPhone instructions); opens full screen like an app.
+- **Light & Dark Mode** — Follows the phone's setting until you choose; the new theme spreads from the button as a growing circle. Printed records stay black on white.
 - **One Login Box** — "Student ID or email": the system knows who is a student and who is staff.
 - **CMAT Branding** — Navy and gold, animated logo intro on the login page, bottom navigation on phones.
 - **Animated Demo** — `/demo.html` plays an event day on a student's and an officer's phone, for presentations (no login).

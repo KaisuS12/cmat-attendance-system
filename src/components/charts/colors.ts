@@ -2,8 +2,9 @@
 // dataviz validator in light mode (lightness band, colorblind separation
 // between neighbours, ≥3:1 contrast on white), so the series stay
 // distinguishable for everyone.
-export const SERIES_BLUE = "#3d6fcc"; // "Signed in"
-export const SERIES_TEAL = "#17a06f"; // "Signed out"
-export const SERIES_GOLD = "#b98a00"; // "Completed" (signed in and out)
-export const GRID = "#e2e8f0"; // slate-200
-export const AXIS_TEXT = "#64748b"; // slate-500
+// Values live in globals.css, with their own validated set for the dark theme.
+export const SERIES_BLUE = "var(--chart-blue)"; // "Signed in"
+export const SERIES_TEAL = "var(--chart-teal)"; // "Signed out"
+export const SERIES_GOLD = "var(--chart-gold)"; // "Completed" (signed in and out)
+export const GRID = "var(--chart-grid)";
+export const AXIS_TEXT = "var(--chart-axis)";

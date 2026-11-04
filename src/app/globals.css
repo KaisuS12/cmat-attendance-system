@@ -21,15 +21,150 @@
   --color-gold-600: #8a6500;
 }
 
-/* The UI is designed light-only; tell the browser so form controls and
-   scrollbars don't switch to dark styling on phones set to dark mode. */
+/* The theme is set on <html data-theme> before first paint (ThemeScript.tsx)
+   and changed by ThemeToggle.tsx; color-scheme keeps form controls and
+   scrollbars matching it. */
 :root {
   color-scheme: light;
+  --page-bg: #f8fafc;
+  --page-fg: #0f172a;
+  /* Chart colors (components/charts/colors.ts). */
+  --chart-blue: #3d6fcc;
+  --chart-teal: #17a06f;
+  --chart-gold: #b98a00;
+  --chart-grid: #e2e8f0;
+  --chart-axis: #64748b;
+  --chart-tint-blue: #dbe5f7;
+  --chart-tint-teal: #cdeee0;
+  --chart-tint-gold: #f3e3ad;
+  --chart-hover: #f1f5f9;
+  --chart-ring: #ffffff;
+  --chart-bar: #1e4a9c;
+  --chart-track: #fef6d8;
+}
+
+/* ── Dark theme ─────────────────────────────────────────────────────────
+   Screen only, so printed records and slips stay black on white. Tailwind
+   colors are variables, so redefining them here restyles every page. */
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page-bg: #0c1426;
+    --page-fg: #f1f4fa;
+    /* Validated against the dark card surface (lightness band, colorblind
+       separation, ≥3:1 contrast). */
+    --chart-blue: #5a8ae0;
+    --chart-teal: #1fa577;
+    --chart-gold: #b98a00;
+    --chart-grid: #2c3a5c;
+    --chart-axis: #a3afc9;
+    --chart-tint-blue: #233a66;
+    --chart-tint-teal: #15403a;
+    --chart-tint-gold: #43391a;
+    --chart-hover: #1c2842;
+    --chart-ring: #162038;
+    --chart-bar: #5a8ae0;
+    --chart-track: #2c2510;
+
+    /* slate-50 stays darker than the card, as it is in the light theme.
+       slate-950 is left alone: it's the always-dark scanner. */
+    --color-slate-50: #101a30;
+    --color-slate-100: #1c2842;
+    --color-slate-200: #2c3a5c;
+    --color-slate-300: #3d4c70;
+    --color-slate-400: #8c9abb;
+    --color-slate-500: #a3afc9;
+    --color-slate-600: #bcc6da;
+    --color-slate-700: #d0d8e8;
+    --color-slate-800: #e2e8f3;
+    --color-slate-900: #f1f4fa;
+
+    --color-brand-50: #18264a;
+    --color-brand-200: #3a4f80;
+    --color-brand-600: #7fa4e8;
+    --color-brand-700: #9fbcf0;
+    --color-brand-800: #c7d7f5;
+
+    --color-gold-100: #2c2510;
+    --color-gold-600: #f3d36b;
+
+    --color-emerald-50: #0f2a20;
+    --color-emerald-100: #123426;
+    --color-emerald-200: #1f5a42;
+    --color-emerald-600: #4ade9d;
+    --color-emerald-700: #6ee7b7;
+    --color-emerald-800: #a7f3d0;
+
+    --color-amber-50: #2b2110;
+    --color-amber-100: #3a2c10;
+    --color-amber-200: #6b5220;
+    --color-amber-700: #fbbf24;
+    --color-amber-800: #fcd34d;
+    --color-amber-900: #fde68a;
+
+    --color-red-50: #2e1518;
+    --color-red-100: #3b1a1e;
+    --color-red-200: #6b2a30;
+    --color-red-600: #f87171;
+    --color-red-700: #fca5a5;
+  }
+
+  /* Cards turn dark, but white text and the scanner's see-through white
+     buttons stay white. The variable is set per element, because children
+     inherit it: white text on a button inside a card needs its own rule. */
+  :root[data-theme="dark"] :is(.bg-white, .bg-white\/95, .bg-white\/60, .from-white) {
+    --color-white: #162038;
+  }
+  :root[data-theme="dark"] :is([class*="text-white"], .bg-white\/10, .bg-white\/20) {
+    --color-white: #ffffff;
+  }
+
+  /* Filled buttons and tooltips keep a solid blue with white text. */
+  :root[data-theme="dark"] [class*="bg-brand-6"],
+  :root[data-theme="dark"] [class*="bg-brand-7"],
+  :root[data-theme="dark"] [class*="bg-brand-8"] {
+    --color-brand-600: #2f5fb8;
+    --color-brand-700: #2a55a8;
+    --color-brand-800: #1e4a9c;
+  }
+  /* Navy text on solid gold stays navy. */
+  :root[data-theme="dark"] :is(.bg-gold-300, .bg-gold-400, .bg-gold-500, .hover\:bg-gold-300:hover) {
+    --color-brand-800: #112e66;
+    --color-gold-600: #5c4300;
+  }
+  /* Solid result cards keep their strong color under white text. */
+  :root[data-theme="dark"] .bg-emerald-600 {
+    --color-emerald-600: #047857;
+  }
+  :root[data-theme="dark"] .bg-red-600 {
+    --color-red-600: #dc2626;
+  }
+  /* Light text on the always-dark scanner. */
+  :root[data-theme="dark"] .text-emerald-200 {
+    --color-emerald-200: #a7f3d0;
+  }
+  :root[data-theme="dark"] .text-amber-200 {
+    --color-amber-200: #fde68a;
+  }
+  :root[data-theme="dark"] dialog::backdrop {
+    background: rgb(2 6 23 / 0.7);
+  }
+}
+
+/* Theme change: the new theme is revealed by a circle growing from the
+   button (ThemeToggle.tsx animates it), with no cross-fade underneath. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  z-index: 1;
 }
 
 body {
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--page-bg);
+  color: var(--page-fg);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
@@ -64,6 +199,7 @@ body {
   }
   body {
     background: #fff;
+    color: #0f172a;
   }
 
   /* While printing slips, print only the slip sheet. */

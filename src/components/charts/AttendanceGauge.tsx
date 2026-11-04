@@ -9,13 +9,13 @@ export function AttendanceGauge({ rate, label }: { rate: number | null; label: s
   return (
     <div className="relative mx-auto h-40 w-40">
       <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90" role="img" aria-label={`${label}: ${text}`}>
-        <circle cx="64" cy="64" r={r} fill="none" stroke="#fef6d8" strokeWidth="14" />
+        <circle cx="64" cy="64" r={r} fill="none" stroke="var(--chart-track)" strokeWidth="14" />
         <circle
           cx="64"
           cy="64"
           r={r}
           fill="none"
-          stroke="#b98a00"
+          stroke="var(--chart-gold)"
           strokeWidth="14"
           strokeLinecap="round"
           strokeDasharray={`${value * c} ${c}`}

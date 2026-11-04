@@ -4,8 +4,8 @@ import { useState } from "react";
 
 // Validated pair (dataviz validator, light mode): lightness band, CVD and
 // contrast all pass.
-const QR_COLOR = "#3d6fcc";
-const MANUAL_COLOR = "#b98a00";
+const QR_COLOR = "var(--chart-blue)";
+const MANUAL_COLOR = "var(--chart-gold)";
 
 // Part-to-whole of how sign-ins were recorded: QR scan vs officer manual
 // entry. Legend plus direct counts, so color is never the only cue.

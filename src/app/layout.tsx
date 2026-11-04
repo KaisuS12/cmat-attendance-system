@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { APP_FULL_NAME, APP_NAME } from "@/lib/brand";
+import { ThemeScript } from "@/components/ThemeScript";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,10 +30,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      // The login intro's pre-paint script may add data-splash to <html>.
+      // Pre-paint scripts add data-theme (ThemeScript) and, on the login
+      // page, data-splash to <html>.
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <ThemeScript />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

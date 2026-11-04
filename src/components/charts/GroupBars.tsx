@@ -39,7 +39,7 @@ export function GroupBars({ data, title }: { data: GroupDatum[]; title: string }
             <span className="relative h-3">
               <span
                 className={`absolute inset-y-0 left-0 rounded-r-[4px] transition-[filter] ${active === i ? "brightness-125" : ""}`}
-                style={{ width: d.rate > 0 ? `max(3px, ${d.rate * 100}%)` : 0, background: "#1e4a9c" }}
+                style={{ width: d.rate > 0 ? `max(3px, ${d.rate * 100}%)` : 0, background: "var(--chart-bar)" }}
               />
             </span>
             <span className="text-right text-sm font-semibold text-slate-900">{pct(d.rate)}</span>
