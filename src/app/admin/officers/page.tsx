@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/session";
 import { AddOfficerForm } from "@/components/AddOfficerForm";
@@ -9,7 +10,9 @@ import type { Profile } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-function StaffRow({ person, me }: { person: Profile; me: string | undefined }) {
+type ActivityCounts = { scans: number; manual: number };
+
+function StaffRow({ person, me, activity }: { person: Profile; me: string | undefined; activity: ActivityCounts }) {
   const isMe = person.id === me;
   const isAdmin = person.role === "admin";
   return (
@@ -22,6 +25,12 @@ function StaffRow({ person, me }: { person: Profile; me: string | undefined }) {
           {person.must_change_password && person.is_active && <Badge tone="amber">Temporary password</Badge>}
         </p>
         <p className="truncate text-sm text-slate-500">{person.email ?? "—"}</p>
+        <Link
+          href={`/admin/officers/${person.id}`}
+          className="mt-1.5 inline-flex min-h-9 items-center text-sm font-medium text-brand-700 hover:underline"
+        >
+          Activity: {activity.scans} {activity.scans === 1 ? "scan" : "scans"} · {activity.manual} manual →
+        </Link>
       </div>
       {!isMe && (
         <div className="flex flex-col items-end gap-2">
@@ -49,6 +58,27 @@ export default async function StaffPage() {
   // records) but tucked away below.
   const former = staff.filter((p) => p.role === "officer" && !p.is_active);
 
+  // Scans and manual entries per person, for the links to their activity log.
+  const countRecords = async (id: string, method: "qr" | "manual") => {
+    const { count } = await supabase
+      .from("attendance_records")
+      .select("id", { count: "exact", head: true })
+      .eq("scanned_by", id)
+      .eq("method", method);
+    return count ?? 0;
+  };
+  const activity = new Map(
+    await Promise.all(
+      staff.map(async (p): Promise<[string, ActivityCounts]> => {
+        const [scans, manual] = await Promise.all([countRecords(p.id, "qr"), countRecords(p.id, "manual")]);
+        return [p.id, { scans, manual }];
+      })
+    )
+  );
+  const row = (p: Profile) => (
+    <StaffRow key={p.id} person={p} me={me?.id} activity={activity.get(p.id) ?? { scans: 0, manual: 0 }} />
+  );
+
   return (
     <div className="mx-auto max-w-2xl">
       <PageTitle
@@ -60,9 +90,7 @@ export default async function StaffPage() {
 
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-gold-600">Admins ({admins.length})</h2>
       <div className="mt-2 space-y-2">
-        {admins.map((p) => (
-          <StaffRow key={p.id} person={p} me={me?.id} />
-        ))}
+        {admins.map(row)}
       </div>
 
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-gold-600">Officers ({officers.length})</h2>
@@ -70,7 +98,7 @@ export default async function StaffPage() {
         {officers.length === 0 ? (
           <EmptyState>No officers yet.</EmptyState>
         ) : (
-          officers.map((p) => <StaffRow key={p.id} person={p} me={me?.id} />)
+          officers.map(row)
         )}
       </div>
 
@@ -84,9 +112,7 @@ export default async function StaffPage() {
             back.
           </p>
           <div className="mt-2 space-y-2">
-            {former.map((p) => (
-              <StaffRow key={p.id} person={p} me={me?.id} />
-            ))}
+            {former.map(row)}
           </div>
         </details>
       )}

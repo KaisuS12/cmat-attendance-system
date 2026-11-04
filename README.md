@@ -78,7 +78,7 @@ cmat-attendance-system/
 ├── src/app/          # Next.js App Router: pages (student, officer, admin) and API routes
 ├── src/components/   # UI: scanner, event forms, charts, student directory, ...
 ├── src/lib/          # Rules: tokens, geofence, eligibility, reports, masterlist parser, ...
-├── supabase/         # SQL migrations 0001–0010 (tables, RLS, database functions)
+├── supabase/         # SQL migrations 0001–0011 (tables, RLS, database functions)
 ├── public/           # Logo, icons, animated demo page
 └── .github/          # Weekly encrypted database backup (GitHub Actions)
 ```
@@ -167,8 +167,9 @@ cmat-attendance-system/
 
 ### 🛠️ Admin & Staff Panel
 - **Roles** — Admin (everything), officer (events, scanning, students), student (own data only).
-- **Staff Management** — Add officers or admins, change roles, deactivate, or **Remove** old officers (kept under "Former officers" if their name is on past records).
+- **Officers Page** — Add officers or admins, change roles, deactivate, or **Remove** old officers (kept under "Former officers" if their name is on past records).
 - **Semesters** — Active semester, clearance export, program lengths, new school year.
+- **Officer Activity Log** — Each officer and admin has a page of their sign-in scans, sign-out scans and manual entries, with filters by action and event and search by student (admins only).
 - **Audit Log** — Who did what and when: events, scans, manual entries, voids, imports, role changes, resets.
 
 ### 📱 Progressive Web App & Branding
@@ -231,7 +232,7 @@ NAM runs on **Supabase PostgreSQL** with row-level security on every table. Time
 
 Database functions: `create_event`, `record_scan`, `apply_school_year`, `undo_school_year`, `set_active_semester`, `current_user_role`.
 
-> **Setting up a new database?** Run the files in [`supabase/migrations/`](supabase/migrations/) in order, `0001` → `0010`, in the Supabase SQL editor.
+> **Setting up a new database?** Run the files in [`supabase/migrations/`](supabase/migrations/) in order, `0001` → `0011`, in the Supabase SQL editor.
 
 ---
 
@@ -264,7 +265,7 @@ cmat-attendance-system/
 │       ├── reports.ts              # Attendance, analytics, frozen class lists
 │       ├── school-year.ts          # Promotion plan
 │       └── __tests__/              # Vitest unit tests
-├── supabase/migrations/            # 0001_init.sql … 0010_student_devices.sql
+├── supabase/migrations/            # 0001_init.sql … 0011_scanned_by_index.sql
 ├── public/                         # Logo, icons, demo.html
 ├── .github/workflows/backup.yml    # Weekly encrypted backup
 └── vercel.json                     # Region + keep-alive cron
@@ -313,7 +314,7 @@ npm install
 
 ### 2. Set Up the Database
 
-In the Supabase dashboard → **SQL Editor**, run each file in `supabase/migrations/` in order (`0001` → `0010`). Then in **Authentication → Providers → Email**, turn off public sign-ups (accounts are created by admins).
+In the Supabase dashboard → **SQL Editor**, run each file in `supabase/migrations/` in order (`0001` → `0011`). Then in **Authentication → Providers → Email**, turn off public sign-ups (accounts are created by admins).
 
 ### 3. Configure and Run
 
