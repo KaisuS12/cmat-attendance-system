@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { btnSecondary, EmptyState, PageTitle } from "@/components/ui";
+import { EmptyState, PageTitle } from "@/components/ui";
+import { Pagination } from "@/components/Pagination";
 import { formatDayDate, formatTime, requestTime, todayInAppTz } from "@/lib/datetime";
 import {
   AUDIT_CATEGORIES,
@@ -13,7 +14,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 10;
 
 // Scans and QR codes happen by the thousand at every event, so "All changes"
 // leaves them out; they have their own button.
@@ -71,24 +72,36 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
   const params = await searchParams;
   const cat = typeof params.cat === "string" ? params.cat : "";
   const legacyAction = typeof params.action === "string" ? params.action : ""; // old links
-  const page = Math.max(1, Number(typeof params.page === "string" ? params.page : 1) || 1);
+  const requestedPage = Math.max(1, Number(typeof params.page === "string" ? params.page : 1) || 1);
   const category = AUDIT_CATEGORIES.find((c) => c.key === cat);
 
   const supabase = await createClient();
-  let query = supabase
-    .from("audit_log")
-    .select("id, created_at, action, entity_type, entity_id, details, profiles!audit_log_actor_id_fkey(full_name, role)")
-    .order("created_at", { ascending: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE); // one extra row tells us if there's a next page
+  const pageQuery = (page: number) => {
+    let query = supabase
+      .from("audit_log")
+      .select("id, created_at, action, entity_type, entity_id, details, profiles!audit_log_actor_id_fkey(full_name, role)", {
+        count: "exact",
+      })
+      .order("created_at", { ascending: false })
+      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    if (category) query = query.in("action", [...category.actions]);
+    else if (legacyAction && legacyAction !== "all") query = query.eq("action", legacyAction);
+    else if (legacyAction !== "all") query = query.not("action", "in", `(${NOISY_ACTIONS.join(",")})`);
+    return query;
+  };
 
-  if (category) query = query.in("action", [...category.actions]);
-  else if (legacyAction && legacyAction !== "all") query = query.eq("action", legacyAction);
-  else if (legacyAction !== "all") query = query.not("action", "in", `(${NOISY_ACTIONS.join(",")})`);
-
-  const { data } = await query;
-  const rows = (data ?? []) as unknown as Entry[];
-  const entries = rows.slice(0, PAGE_SIZE);
-  const hasNext = rows.length > PAGE_SIZE;
+  let page = requestedPage;
+  let result = await pageQuery(page);
+  let total = result.count ?? 0;
+  let totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // A page past the end (old link, or entries changed): show the last page.
+  if (page > totalPages) {
+    page = totalPages;
+    result = await pageQuery(page);
+    total = result.count ?? total;
+    totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  }
+  const entries = (result.data ?? []) as unknown as Entry[];
   const names = await loadNames(supabase, entries);
 
   // Group by Manila calendar day: Today, Yesterday, then dates.
@@ -139,7 +152,8 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
         })}
       </nav>
 
-      <div className="mt-5">
+      <div className="mt-5 space-y-4">
+        <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} href={(p) => query_({ page: p })} />
         {groups.length === 0 ? (
           <EmptyState>Nothing here yet.</EmptyState>
         ) : (
@@ -192,22 +206,9 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
         )}
       </div>
 
-      {(page > 1 || hasNext) && (
-        <div className="mt-4 flex justify-between">
-          {page > 1 ? (
-            <Link href={query_({ page: page - 1 })} className={btnSecondary}>
-              ← Newer
-            </Link>
-          ) : (
-            <span />
-          )}
-          {hasNext && (
-            <Link href={query_({ page: page + 1 })} className={btnSecondary}>
-              Older →
-            </Link>
-          )}
-        </div>
-      )}
+      <div className="mt-4">
+        <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} href={(p) => query_({ page: p })} />
+      </div>
     </div>
   );
 }
